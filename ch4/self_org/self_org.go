@@ -5,6 +5,14 @@
 /*
 self_org illustrates how self-organizing learning emerges from the interactions between
 inhibitory competition, rich-get-richer Hebbian learning, and homeostasis (negative feedback).
+
+self_org阐明了自组织学习是如何通过
+
+	抑制性竞争inhibitory competition、
+	富者更富的Hebbian学习rich-get-richer Hebbian learning 和
+	稳态(负反馈)homeostasis (negative feedback)
+
+之间的相互作用而产生的。
 */
 package main
 
@@ -41,18 +49,19 @@ import (
 	"github.com/goki/mat32"
 )
 
-// this is the stub main for gogi that calls our actual mainrun function, at end of file
+// this is the stub main for gogi that calls our actual mainrun function, at end of file. 这是 Gogi 的存根主函数，调用我们实际的 mainrun 函数，位于文件末尾
 func main() {
 	gimain.Main(func() {
 		mainrun()
 	})
 }
 
-// LogPrec is precision for saving float values in logs
+// LogPrec is precision for saving float values in logs. LogPrec 是保存日志中浮点数值的精度
 const LogPrec = 4
 
 // ParamSets is the default set of parameters -- Base is always applied, and others can be optionally
 // selected to apply on top of that
+// ParamSets 是默认参数集 -- 始终应用基础参数，其他参数可以选择在基础参数上应用
 var ParamSets = params.Sets{
 	{Name: "Base", Desc: "these are the best params", Sheets: params.Sheets{
 		"Network": &params.Sheet{
@@ -102,6 +111,9 @@ var ParamSets = params.Sets{
 // state information organized and available without having to pass everything around
 // as arguments to methods, and provides the core GUI interface (note the view tags
 // for the fields which provide hints to how things should be displayed).
+
+// Sim 封装了整个模拟模型，我们将所有的功能定义为该结构上的方法。这个结构将所有相关的状态信息有序地保存并提供，
+// 无需将所有内容作为参数传递给方法，同时提供核心的 GUI 接口（注意字段上的视图标签，提供了如何显示事物的提示）。
 type Sim struct {
 	AvgLGain      float32           `min:"0.1" step:"0.5" def:"2.5" desc:"key BCM hebbian learning parameter, that determines how high the floating threshold goes -- higher = more homeostatic pressure against rich-get-richer feedback loops"`
 	InputNoise    float32           `min:"0" def:"0" desc:"variance on gaussian noise to add to inputs"`
@@ -151,12 +163,14 @@ type Sim struct {
 
 // this registers this Sim Type and gives it properties that e.g.,
 // prompt for filename for save methods.
+// 注册此 Sim 类型并赋予其属性，例如
+// 提示保存方法的文件名。
 var KiT_Sim = kit.Types.AddType(&Sim{}, SimProps)
 
-// TheSim is the overall state for this simulation
+// TheSim is the overall state for this simulation. TheSim 是本次模拟的总体状态
 var TheSim Sim
 
-// New creates new blank elements and initializes defaults
+// New creates new blank elements and initializes defaults. 新建 创建新的空白元素并初始化默认值
 func (ss *Sim) New() {
 	ss.Net = &leabra.Network{}
 	ss.Lines2 = &etable.Table{}
@@ -188,7 +202,7 @@ func (ss *Sim) Defaults() {
 ////////////////////////////////////////////////////////////////////////////////////////////
 // 		Configs
 
-// Config configures all the elements using the standard functions
+// Config configures all the elements using the standard functions. 配置 使用标准功能配置所有元素
 func (ss *Sim) Config() {
 	ss.OpenPats()
 	ss.ConfigEnv()
@@ -224,12 +238,13 @@ func (ss *Sim) ConfigEnv() {
 }
 
 func (ss *Sim) ConfigNet(net *leabra.Network) {
-	net.InitName(net, "SelfOrg")
-	inp := net.AddLayer2D("Input", 5, 5, emer.Input)
-	hid := net.AddLayer2D("Hidden", 4, 5, emer.Hidden)
+	net.InitName(net, "SelfOrg")                       // 初始化神经网络的名称为 "SelfOrg"
+	inp := net.AddLayer2D("Input", 5, 5, emer.Input)   // input is 5x5 neurons
+	hid := net.AddLayer2D("Hidden", 4, 5, emer.Hidden) // hidden layer is 4x5 neurons
 
-	net.ConnectLayers(inp, hid, prjn.NewFull(), emer.Forward)
+	net.ConnectLayers(inp, hid, prjn.NewFull(), emer.Forward) // connection is one way full connection from input to hidden
 
+	// initiate the network
 	net.Defaults()
 	ss.SetParams("Network", false) // only set Network params
 	err := net.Build()
@@ -245,6 +260,7 @@ func (ss *Sim) ConfigNet(net *leabra.Network) {
 
 // Init restarts the run, and initializes everything, including network weights
 // and resets the epoch log table
+// Init 重启运行，并初始化一切，包括网络权重和重置历时日志表
 func (ss *Sim) Init() {
 	rand.Seed(ss.RndSeed)
 	ss.StopNow = false
@@ -258,6 +274,7 @@ func (ss *Sim) Init() {
 
 // NewRndSeed gets a new random seed based on current time -- otherwise uses
 // the same random seed for every run
+// NewRndSeed 根据当前时间获取新的随机种子 -- 否则每次运行都使用相同的随机种子
 func (ss *Sim) NewRndSeed() {
 	ss.RndSeed = time.Now().UnixNano()
 }
@@ -265,6 +282,9 @@ func (ss *Sim) NewRndSeed() {
 // Counters returns a string of the current counter state
 // use tabs to achieve a reasonable formatting overall
 // and add a few tabs at the end to allow for expansion..
+// Counters 返回当前计数器状态的字符串
+// 使用制表符以实现合理的整体格式
+// 并在末尾添加一些制表符以便扩展..
 func (ss *Sim) Counters(train bool) string {
 	if train {
 		return fmt.Sprintf("Run:\t%d\tEpoch:\t%d\tTrial:\t%d\tCycle:\t%d\tName:\t%s\t\t\t", ss.TrainEnv.Run.Cur, ss.TrainEnv.Epoch.Cur, ss.TrainEnv.Trial.Cur, ss.Time.Cycle, ss.TrainEnv.TrialName.Cur)
@@ -289,6 +309,11 @@ func (ss *Sim) UpdateView(train bool, cyc int) {
 // using ApplyExt method on relevant layers (see TrainTrial, TestTrial).
 // If train is true, then learning DWt or WtFmDWt calls are made.
 // Handles netview updating within scope of AlphaCycle
+// AlphaCyc 运行一个alpha周期(100毫秒, 4个季度)的处理。
+// 在调用之前，外部输入必须已经被应用，
+// 使用相关层上的 ApplyExt 方法（参见 TrainTrial、TestTrial)。
+// 如果 train 为 true, 则会进行学习 DWt 或 WtFmDWt 的调用。
+// 在 AlphaCycle 的范围内处理 netview 的更新。
 func (ss *Sim) AlphaCyc(train bool) {
 	// ss.Win.PollEvents() // this can be used instead of running in a separate goroutine
 	viewUpdt := ss.TrainUpdt
