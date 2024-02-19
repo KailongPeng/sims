@@ -387,29 +387,37 @@ func (ss *Sim) ApplyInputs(en env.Env) {
 	}
 }
 
-// TrainTrial runs one trial of training using TrainEnv
+// TrainTrial 运行一个训练trial. TrainTrial runs one trial of training using TrainEnv
+// epoch -> run -> trial
 func (ss *Sim) TrainTrial() {
-
+	// 如果需要新的运行Run，调用NewRun方法进行初始化
 	if ss.NeedsNewRun {
 		ss.NewRun()
 	}
 
+	// 在Env中进行一步，该Env封装并管理所有计数器状态
 	ss.TrainEnv.Step() // the Env encapsulates and manages all counter state
 
 	// Key to query counters FIRST because current state is in NEXT epoch
 	// if epoch counter has changed
+	// 查询计数器的状态，因为当前状态在 下一个epoch 中，如果epoch计数器发生变化
 	epc, _, chg := ss.TrainEnv.Counter(env.Epoch)
 	if chg {
+		// 如果ViewOn为true且TrainUpdt大于AlphaCycle，则更新视图
 		if ss.ViewOn && ss.TrainUpdt > leabra.AlphaCycle {
 			ss.UpdateView(true, -1)
 		}
-		if epc%ss.TestInterval == 0 { // note: epc is *next* so won't trigger first time
+		// 如果当前epoch是TestInterval的倍数，则进行测试
+		if epc%ss.TestInterval == 0 { // 注意：epc是 *下一个* ，所以不会在第一次触发 // note: epc is *next* so won't trigger first time
 			ss.TestAll()
 		}
+		// 记录当前epoch的训练数据
 		ss.LogTrnEpc(ss.TrnEpcLog)
+		// 如果当前epoch大于等于MaxEpcs，则训练结束
 		if epc >= ss.MaxEpcs {
 			// done with training..
 			ss.RunEnd()
+			// 如果Run.Incr()返回true，表示训练完成
 			if ss.TrainEnv.Run.Incr() { // we are done!
 				ss.StopNow = true
 				return
@@ -419,10 +427,13 @@ func (ss *Sim) TrainTrial() {
 			}
 		}
 	}
-
+	// 设置参数集，对于"Hidden2Act"和"Network"，激活2个单元进行训练
 	ss.SetParamsSet("Hidden2Act", "Network", false) // 2 units active for training
+	// 应用输入到网络中
 	ss.ApplyInputs(&ss.TrainEnv)
-	ss.AlphaCyc(true)   // train
+	// 进行Alpha周期的训练
+	ss.AlphaCyc(true) // train
+	// 累积trial的统计信息
 	ss.TrialStats(true) // accumulate
 }
 
@@ -492,16 +503,22 @@ func (ss *Sim) TrainEpoch() {
 	ss.Stopped()
 }
 
-// TrainRun runs training trials for remainder of run
+// TrainRun 运行剩余的训练trial直至当前run结束 // TrainRun runs training trials for remainder of run
 func (ss *Sim) TrainRun() {
+	// 将StopNow标志重置为false
 	ss.StopNow = false
+	// 获取当前运行的编号
 	curRun := ss.TrainEnv.Run.Cur
+	// 循环运行训练trial
 	for {
+		// 调用TrainTrial方法运行一个训练trial
 		ss.TrainTrial()
+		// 如果StopNow标志为true或者当前运行编号发生变化，则跳出循环
 		if ss.StopNow || ss.TrainEnv.Run.Cur != curRun {
 			break
 		}
 	}
+	// 训练运行结束后调用Stopped方法
 	ss.Stopped()
 }
 
@@ -714,20 +731,26 @@ func (ss *Sim) ValsTsr(name string) *etensor.Float32 {
 //////////////////////////////////////////////
 //  TrnEpcLog
 
-// LogTrnEpc adds data from current epoch to the TrnEpcLog table.
-// computes epoch averages prior to logging.
+// LogTrnEpc将当前epoch的数据添加到TrnEpcLog表中。 LogTrnEpc adds data from current epoch to the TrnEpcLog table.
+// 在记录之前，计算epoch的平均值。 computes epoch averages prior to logging.
 func (ss *Sim) LogTrnEpc(dt *etable.Table) {
+	// 获取当前epoch的值并将表格的行数增加1
 	row := dt.Rows
 	dt.SetNumRows(row + 1)
 
+	// 获取当前epoch的值（使用先前值，因为此函数是在epoch增加后触发的）
 	epc := ss.TrainEnv.Epoch.Prv // this is triggered by increment so use previous value
 	// nt := float64(ss.TrainEnv.Table.Len()) // number of trials in view
 
+	// 调用HidFmInput方法，该方法将输入转换为隐藏层的活动
 	ss.HidFmInput(ss.HidFmInputWts)
+
+	// 如果存在WtsGrid，则更新其显示
 	if ss.WtsGrid != nil {
 		ss.WtsGrid.UpdateSig()
 	}
 
+	// 将一些信息添加到表格的当前行
 	dt.SetCellFloat("Run", row, float64(ss.TrainEnv.Run.Cur))
 	dt.SetCellFloat("Epoch", row, float64(epc))
 	dt.SetCellFloat("UniqPats", row, ss.UniqPats)
