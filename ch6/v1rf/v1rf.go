@@ -202,11 +202,11 @@ func (ss *Sim) ConfigEnv() {
 		ss.MaxRuns = 1
 	}
 	if ss.MaxEpcs == 0 { // allow user override
-		ss.MaxEpcs = 100
+		ss.MaxEpcs = 5 // ss.MaxEpcs = 100
 		ss.NZeroStop = -1
 	}
 	if ss.MaxTrls == 0 { // allow user override
-		ss.MaxTrls = 100
+		ss.MaxTrls = 10 // ss.MaxTrls = 100
 	}
 
 	ss.TrainEnv.Nm = "TrainEnv"
