@@ -311,7 +311,7 @@ func (ss *Sim) UpdateView(train bool, cyc int) {
 ////////////////////////////////////////////////////////////////////////////////
 // 	    Running the Network, starting bottom-up..
 
-// AlphaCyc runs one alpha-cycle (100 msec, 4 quarters)			 of processing.
+// AlphaCyc 运行一个阿尔法周期（100毫秒，4个quarters）的处理。 在调用之前，外部输入必须已经被应用，使用相关层上的 ApplyExt 方法（参见 TrainTrial、TestTrial）。 如果 train 为 true，则会进行 DWt 或 WtFmDWt 的学习调用。在 AlphaCycle 的范围内处理 netview 更新。// AlphaCyc runs one alpha-cycle (100 msec, 4 quarters) of processing.
 // External inputs must have already been applied prior to calling,
 // using ApplyExt method on relevant layers (see TrainTrial, TestTrial).
 // If train is true, then learning DWt or WtFmDWt calls are made.
@@ -370,7 +370,7 @@ func (ss *Sim) AlphaCyc(train bool) {
 	}
 }
 
-// ApplyInputs applies input patterns from given envirbonment.
+// ApplyInputs 应用来自给定环境的输入模式。 最佳实践是将其作为一个单独的方法，并使用适当的参数，以便在不同的上下文（训练、测试等）中使用。 // ApplyInputs applies input patterns from given envirbonment.
 // It is good practice to have this be a separate method with appropriate
 // args so that it can be used for various different contexts
 // (training, testing, etc).
@@ -485,7 +485,7 @@ func (ss *Sim) TrainRun() {
 	ss.Stopped()
 }
 
-// Train runs the full training from this point onward
+// Train runs the full training from this point onward. This function may be linked to the Train button in the GUI.
 func (ss *Sim) Train() {
 	ss.StopNow = false
 	for {
@@ -799,27 +799,35 @@ func (ss *Sim) ConfigTrnEpcPlot(plt *eplot.Plot2D, dt *etable.Table) *eplot.Plot
 
 // LogTstTrl adds data from current trial to the TstTrlLog table.
 // log always contains number of testing items
+// LogTstTrl 将当前试验的数据添加到 TstTrlLog 表中。
+// 记录始终包含测试项的数量。
 func (ss *Sim) LogTstTrl(dt *etable.Table) {
+
+	// 获取先前的时代值，这是通过递增触发的，因此使用先前的值
 	epc := ss.TrainEnv.Epoch.Prv // this is triggered by increment so use previous value
 
+	// 获取当前试验的值
 	trl := ss.TestEnv.Trial.Cur
+	// 使用当前试验作为行索引
 	row := trl
-
+	// 如果数据表的行数小于等于当前试验索引，则增加行数
 	if dt.Rows <= row {
 		dt.SetNumRows(row + 1)
 	}
-
+	// 将各种数据添加到表格中
 	dt.SetCellFloat("Run", row, float64(ss.TrainEnv.Run.Cur))
 	dt.SetCellFloat("Epoch", row, float64(epc))
 	dt.SetCellFloat("Trial", row, float64(trl))
 	dt.SetCellString("TrialName", row, ss.TestEnv.TrialName.Cur)
-
+	// 遍历神经网络的层名称
 	for _, lnm := range ss.LayStatNms {
+		// 获取神经网络中具有给定名称的层
 		ly := ss.Net.LayerByName(lnm).(leabra.LeabraLayer).AsLeabra()
+		// 将层的平均激活添加到表格中
 		dt.SetCellFloat(ly.Nm+" ActM.Avg", row, float64(ly.Pools[0].ActM.Avg))
 	}
 
-	// note: essential to use Go version of update when called from another goroutine
+	// 注意：在从另一个 goroutine 调用时，使用 Go 版本的更新是至关重要的 // note: essential to use Go version of update when called from another goroutine
 	ss.TstTrlPlot.GoUpdate()
 }
 
@@ -1248,6 +1256,32 @@ func (ss *Sim) ConfigGui() *gi.Window {
 
 	win.MainMenuUpdated()
 	return win
+}
+
+// Helper function for tasks: test all items & save weights and activations
+func (ss *Sim) TestandSaveAfterTask() {
+	// Run through every item once
+	fmt.Println("Running test after task!!")
+	// This is brittle, is there a way to get the number of test items?
+	var num_tests int
+	// if task == "TaskRetrievalPractice" {
+	// 	num_tests = 1
+	// } else if task == "TaskRestudy" {
+	// 	num_tests = 3
+	// } else {
+	// 	num_tests = 4
+	// }
+
+	num_tests = 4
+	for idx := 0; idx < num_tests; idx++ {
+		// test the item
+		if !ss.IsRunning {
+			ss.IsRunning = true
+			fmt.Printf("testing index: %v\n", idx)
+			ss.TestItem(idx)
+			ss.IsRunning = false
+		}
+	}
 }
 
 // These props register Save methods so they can be used
