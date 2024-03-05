@@ -7,54 +7,45 @@ def visualize_prob():
     file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes.tsv'
     probes_df = pd.read_csv(file_path, sep='\t')
 
-    # Display the first few rows of the dataframe to understand its structure
-    probes_df.head()
-
     # Function to extract and reshape matrix data
-    def extract_and_reshape(matrix_data):
+    def extract_and_reshape(matrix_data, prefix):
         reshaped_matrix = np.zeros((12, 12))
         for i in range(12):
             for j in range(12):
-                column_name = f'%LGNon[2:{i},{j}]'
+                column_name = f'{prefix}[2:{i},{j}]'
                 if column_name in matrix_data:
                     reshaped_matrix[i, j] = matrix_data[column_name]
-                else:
-                    column_name = f'%LGNoff[2:{i},{j}]'
-                    if column_name in matrix_data:
-                        reshaped_matrix[i, j] = matrix_data[column_name]
         return reshaped_matrix
 
-    # Prepare a dictionary to hold matrices for each category
+    # Prepare a dictionary to hold matrices for each category and type (%LGNon and %LGNoff)
     matrices = {}
 
-    # Iterate over unique categories in the `$Name` column
-    for category in probes_df['$Name'].unique():
-        category_data = probes_df[probes_df['$Name'] == category]
-        if not category_data.empty:
-            category_dict = category_data.iloc[0].to_dict()
-            matrices[category] = extract_and_reshape(category_dict)
+    # Define categories and types
+    categories = ['H', 'L', 'V', 'R']
+    types = ['%LGNon', '%LGNoff']
 
-    # Visualize each matrix
-    fig, axes = plt.subplots(1, len(matrices), figsize=(20, 5))
-    if len(matrices) > 1:  # Adjust for when there's more than one matrix to display
-        for ax, (category, matrix) in zip(axes, matrices.items()):
-            cax = ax.matshow(matrix, cmap='viridis')
-            ax.set_title(category)
-            fig.colorbar(cax, ax=ax, orientation='vertical')
+    # Iterate over categories and types to extract and store matrices
+    for category in categories:
+        matrices[category] = {}
+        for type_ in types:
+            category_data = probes_df[probes_df['$Name'] == category]
+            if not category_data.empty:
+                category_dict = category_data.iloc[0].to_dict()
+                matrices[category][type_] = extract_and_reshape(category_dict, type_)
+
+    # Visualize each matrix pair (%LGNon and %LGNoff) side by side for each category
+    fig, axes = plt.subplots(len(categories), 2, figsize=(10, 20))  # Adjust figsize as needed
+
+    for i, category in enumerate(categories):
+        for j, type_ in enumerate(types):
+            ax = axes[i, j]
+            cax = ax.matshow(matrices[category][type_], cmap='viridis')
+            ax.set_title(f'{category} - {type_}')
             ax.set_xticks(range(12))
             ax.set_yticks(range(12))
             ax.set_xticklabels(range(1, 13))
             ax.set_yticklabels(range(1, 13))
-    else:  # Adjust for when there's only one matrix to display
-        category, matrix = next(iter(matrices.items()))
-        ax = axes
-        cax = ax.matshow(matrix, cmap='viridis')
-        ax.set_title(category)
-        fig.colorbar(cax, ax=ax, orientation='vertical')
-        ax.set_xticks(range(12))
-        ax.set_yticks(range(12))
-        ax.set_xticklabels(range(1, 13))
-        ax.set_yticklabels(range(1, 13))
+            fig.colorbar(cax, ax=ax, orientation='vertical')
 
     plt.tight_layout()
     plt.show()
