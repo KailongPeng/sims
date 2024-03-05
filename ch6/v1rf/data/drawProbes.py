@@ -68,11 +68,11 @@ def main():
 if __name__ == "__main__":
     main()
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_length=7, line_width=2):
-    import numpy as np
-    import matplotlib.pyplot as plt
-
     canvas = np.zeros(canvas_size)  # 初始化画布
 
     # 直线参数
@@ -89,29 +89,26 @@ def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_lengt
     # 通过Bresenham算法画直线
     def bresenham_line(x0, y0, x1, y1):
         dx = abs(x1 - x0)
-        dy = -abs(y1 - y0)
+        dy = abs(y1 - y0)
         sx = 1 if x0 < x1 else -1
         sy = 1 if y0 < y1 else -1
-        err = dx + dy
+        err = dx - dy
         while True:
+            # 对直线的每个点进行宽度调整
+            if 0 <= x0 < canvas_size[0] and 0 <= y0 < canvas_size[1]:
+                for wx in range(-line_width + 1, line_width):
+                    for wy in range(-line_width + 1, line_width):
+                        if 0 <= x0 + wx < canvas_size[0] and 0 <= y0 + wy < canvas_size[1]:
+                            canvas[y0 + wy, x0 + wx] = 1
             if x0 == x1 and y0 == y1:
                 break
             e2 = 2 * err
-            if e2 >= dy:
-                err += dy
+            if e2 > -dy:
+                err -= dy
                 x0 += sx
-            if e2 <= dx:
+            if e2 < dx:
                 err += dx
                 y0 += sy
-            # 为直线上的点赋值1
-            if 0 <= x0 < canvas_size[0] and 0 <= y0 < canvas_size[1]:  # 确保点在画布范围内
-                canvas[y0, x0] = 1
-                # 根据直线宽度修改周围的点
-                for iii in range(1, line_width):
-                    if 0 <= y0 + iii < canvas_size[1]:
-                        canvas[y0 + iii, x0] = 1
-                    if 0 <= y0 - iii < canvas_size[1]:
-                        canvas[y0 - iii, x0] = 1
 
     # 画直线
     bresenham_line(end_x1, end_y1, end_x2, end_y2)
@@ -124,12 +121,14 @@ def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_lengt
 
 # 调用函数示例
 def LGN_on_off(x, y, angle):
+    # 角度转换为弧度进行计算
+    angle_rad = np.radians(angle)
     draw_line_on_canvas(center_position=(x, y), angle=angle)
-    draw_line_on_canvas(center_position=(round(x + 3 * np.cos(90 - angle)), round(y - 3 * np.sin(90 - angle))),
-                        angle=angle)
+    draw_line_on_canvas(
+        center_position=(round(x + 3 * np.cos(np.radians(90 - angle))), round(y - 3 * np.sin(np.radians(90 - angle)))),
+        angle=angle)
 
 
-LGN_on_off(5, 5, 90)
+LGN_on_off(5, 5, 0)
 
-
-# modify this code so that each time I can draw two 12 x 12 matrices simultaneously, and save them to a file.
+# 对于以上代码, 每一次调用都可以生成两个包含0或者1的矩形. 我希望可以保存下来这些矩形. 与此同时, 我希望可以多次随机调用这个函数, 并且将生成的矩形保存下来. 请问如何实现这个功能?
