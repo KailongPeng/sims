@@ -65,15 +65,15 @@ def main():
     app = MatrixDrawer(root)
     root.mainloop()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
+
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_length=7, line_width=2):
-    canvas = np.zeros(canvas_size)  # 初始化画布
+    canvas = np.zeros(canvas_size)
 
     # 直线参数
     start_x, start_y = center_position  # 直线中心位置
@@ -117,18 +117,27 @@ def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_lengt
     plt.imshow(canvas, cmap='Greys', interpolation='nearest')
     plt.title(f'Line at ({center_position}), Angle: {angle}°')
     plt.show()
+    return canvas  # 返回画布数据
 
 
 # 调用函数示例
 def LGN_on_off(x, y, angle):
-    # 角度转换为弧度进行计算
-    angle_rad = np.radians(angle)
-    draw_line_on_canvas(center_position=(x, y), angle=angle)
-    draw_line_on_canvas(
+    canvas1 = draw_line_on_canvas(center_position=(x, y), angle=angle)
+    canvas2 = draw_line_on_canvas(
         center_position=(round(x + 3 * np.cos(np.radians(90 - angle))), round(y - 3 * np.sin(np.radians(90 - angle)))),
         angle=angle)
+    return canvas1, canvas2
+def generate_and_save_rectangles(num_calls):
+    rectangles = []  # 用于保存所有矩形数据的列表
+    for _ in range(num_calls):
+        x, y = np.random.randint(1, 11, size=2)  # 随机生成中心位置
+        angle = np.random.randint(0, 181)  # 随机生成角度
+        canvas1, canvas2 = LGN_on_off(x, y, angle)
+        rectangles.append((canvas1, canvas2))
+    return rectangles
 
+# 调用函数以生成和保存10次随机矩形数据
+rectangles_data = generate_and_save_rectangles(10)
+# np.save("rectangles_data.npy", rectangles_data)
 
-LGN_on_off(5, 5, 0)
-
-# 对于以上代码, 每一次调用都可以生成两个包含0或者1的矩形. 我希望可以保存下来这些矩形. 与此同时, 我希望可以多次随机调用这个函数, 并且将生成的矩形保存下来. 请问如何实现这个功能?
+# 修改代码, 使得每一次返回canvas的时候需要检查是否是空的, 如果是空的, 则需要重新画一次, 直到不是空的为止
