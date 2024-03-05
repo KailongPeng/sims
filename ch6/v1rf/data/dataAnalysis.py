@@ -4,7 +4,8 @@ def visualize_prob():
     import matplotlib.pyplot as plt
 
     # Load the TSV file
-    file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes.tsv'
+    # file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes.tsv'
+    file_path = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes_new.tsv"
     probes_df = pd.read_csv(file_path, sep='\t')
 
     # Function to extract and reshape matrix data
@@ -21,7 +22,7 @@ def visualize_prob():
     matrices = {}
 
     # Define categories and types
-    categories = ['H', 'L', 'V', 'R']
+    categories = probes_df["$Name"].to_list()  #['H', 'L', 'V', 'R']
     types = ['%LGNon', '%LGNoff']
 
     # Iterate over categories and types to extract and store matrices
@@ -34,18 +35,18 @@ def visualize_prob():
                 matrices[category][type_] = extract_and_reshape(category_dict, type_)
 
     # Visualize each matrix pair (%LGNon and %LGNoff) side by side for each category
-    fig, axes = plt.subplots(len(categories), 2, figsize=(10, 20))  # Adjust figsize as needed
+    fig, axes = plt.subplots(len(categories), 2, figsize=(10, 10*len(categories)))
 
     for i, category in enumerate(categories):
         for j, type_ in enumerate(types):
             ax = axes[i, j]
             cax = ax.matshow(matrices[category][type_], cmap='viridis')
-            ax.set_title(f'{category} - {type_}')
-            ax.set_xticks(range(12))
-            ax.set_yticks(range(12))
-            ax.set_xticklabels(range(1, 13))
-            ax.set_yticklabels(range(1, 13))
-            fig.colorbar(cax, ax=ax, orientation='vertical')
+            # ax.set_title(f'{category} - {type_}')
+            # ax.set_xticks(range(12))
+            # ax.set_yticks(range(12))
+            # ax.set_xticklabels(range(1, 13))
+            # ax.set_yticklabels(range(1, 13))
+            # fig.colorbar(cax, ax=ax, orientation='vertical')
 
     plt.tight_layout()
     plt.show()
