@@ -96,8 +96,8 @@ def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_lengt
         err = dx - dy
         while True:
             if 0 <= x0 < canvas_size[0] and 0 <= y0 < canvas_size[1]:
-                for wx in range(-line_width + 1, line_width):
-                    for wy in range(-line_width + 1, line_width):
+                for wx in range(-line_width + 2, line_width):
+                    for wy in range(-line_width + 2, line_width):
                         if 0 <= x0 + wx < canvas_size[0] and 0 <= y0 + wy < canvas_size[1]:
                             canvas[y0 + wy, x0 + wx] = 1
             if x0 == x1 and y0 == y1:
@@ -114,37 +114,24 @@ def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_lengt
     return canvas
 
 def LGN_on_off(x, y, angle):
+    distance_between_lines = 4
     canvas1 = draw_line_on_canvas(center_position=(x, y), angle=angle)
     canvas2 = draw_line_on_canvas(
-        center_position=(round(x + 3 * np.cos(np.radians(90 - angle))), round(y - 3 * np.sin(np.radians(90 - angle)))),
+        center_position=(round(x + distance_between_lines * np.cos(np.radians(90 - angle))),
+                         round(y - distance_between_lines * np.sin(np.radians(90 - angle)))),
         angle=angle)
     return canvas1, canvas2
-
-# def generate_and_save_rectangles(num_calls):
-#     rectangles = []
-#     for _ in range(num_calls):
-#         x, y = np.random.randint(1, 11, size=2)
-#         angle = np.random.randint(0, 181)
-#         canvas1, canvas2 = LGN_on_off(x, y, angle)
-#         if np.any(canvas1) and np.any(canvas2):
-#             rectangles.append((canvas1, canvas2))
-#             # 可视化画布和直线
-#             plt.figure()
-#             plt.imshow(canvas1, cmap='Greys', interpolation='nearest')
-#             plt.figure()
-#             plt.imshow(canvas2, cmap='rainbow', interpolation='nearest')
-#             plt.title(f'Line at ({x} {y}), Angle: {angle}°')
-#             plt.show()
-#
-#     return rectangles
-
-# rectangles_data = generate_and_save_rectangles(10)
 
 def convert_to_list(canvas1, canvas2, index):
     """将canvas1和canvas2转换为列表"""
     flattened1 = canvas1.flatten()
     flattened2 = canvas2.flatten()
-    return ['_D', f'X{index}'] + flattened1.tolist() + flattened2.tolist()
+    # 随机分配 flattened1 和 flattened2 给 t1 和 t2
+    if np.random.rand() > 0.5:
+        t1, t2 = flattened1, flattened2
+    else:
+        t1, t2 = flattened2, flattened1
+    return ['_D', f'X{index}'] + t1.tolist() + t2.tolist()
 
 def generate_and_save_rectangles(num_calls, data_for_df):
     for i in range(1, num_calls + 1):  # 从1开始编号
@@ -152,6 +139,16 @@ def generate_and_save_rectangles(num_calls, data_for_df):
         angle = np.random.randint(0, 181)
         canvas1, canvas2 = LGN_on_off(x, y, angle)
         if np.any(canvas1) and np.any(canvas2):
+            plt.figure(figsize=(8, 4))
+            plt.subplot(1, 2, 1)
+            plt.imshow(canvas1, cmap='gray')
+            plt.title('LGN On')
+            plt.subplot(1, 2, 2)
+            plt.imshow(canvas2, cmap='gray')
+            plt.title('LGN Off')
+            plt.suptitle(f'X{i}')
+            plt.show()
+
             row = convert_to_list(canvas1, canvas2, i)
             data_for_df.loc[len(data_for_df)] = row
     # # 创建DataFrame
@@ -164,7 +161,7 @@ def generate_and_save_rectangles(num_calls, data_for_df):
 # 调用函数生成数据并保存
 file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes.tsv'
 probes_df = pd.read_csv(file_path, sep='\t')
-probes_df = generate_and_save_rectangles(10, probes_df)
+probes_df = generate_and_save_rectangles(50, probes_df)
 probes_df.to_csv('/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes_new.tsv',
                  sep='\t', index=False)
 

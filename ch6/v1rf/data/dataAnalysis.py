@@ -34,22 +34,16 @@ def visualize_prob():
                 category_dict = category_data.iloc[0].to_dict()
                 matrices[category][type_] = extract_and_reshape(category_dict, type_)
 
-    # Visualize each matrix pair (%LGNon and %LGNoff) side by side for each category
-    fig, axes = plt.subplots(len(categories), 2, figsize=(10, 10*len(categories)))
+    # # Visualize each matrix pair (%LGNon and %LGNoff) side by side for each category
+    # fig, axes = plt.subplots(len(categories), 2, figsize=(10, 10*len(categories)))
 
     for i, category in enumerate(categories):
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
         for j, type_ in enumerate(types):
-            ax = axes[i, j]
-            cax = ax.matshow(matrices[category][type_], cmap='viridis')
-            # ax.set_title(f'{category} - {type_}')
-            # ax.set_xticks(range(12))
-            # ax.set_yticks(range(12))
-            # ax.set_xticklabels(range(1, 13))
-            # ax.set_yticklabels(range(1, 13))
-            # fig.colorbar(cax, ax=ax, orientation='vertical')
+            axes[j].matshow(matrices[category][type_], cmap='viridis')
+            axes[j].set_title(f'{category} - {type_}')
+        plt.show()
 
-    plt.tight_layout()
-    plt.show()
 
     """
     Two ways to solve the current issue:
