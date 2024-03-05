@@ -69,6 +69,67 @@ if __name__ == "__main__":
     main()
 
 
+def draw_line_on_canvas(center_position, angle, canvas_size=(12, 12), line_length=7, line_width=2):
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    canvas = np.zeros(canvas_size)  # 初始化画布
+
+    # 直线参数
+    start_x, start_y = center_position  # 直线中心位置
+    angle_rad = np.radians(angle)  # 将角度转换为弧度
+
+    # 计算直线的两个终点坐标
+    half_length = line_length / 2
+    end_x1 = int(start_x + half_length * np.cos(angle_rad))
+    end_y1 = int(start_y + half_length * np.sin(angle_rad))
+    end_x2 = int(start_x - half_length * np.cos(angle_rad))
+    end_y2 = int(start_y - half_length * np.sin(angle_rad))
+
+    # 通过Bresenham算法画直线
+    def bresenham_line(x0, y0, x1, y1):
+        dx = abs(x1 - x0)
+        dy = -abs(y1 - y0)
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
+        err = dx + dy
+        while True:
+            if x0 == x1 and y0 == y1:
+                break
+            e2 = 2 * err
+            if e2 >= dy:
+                err += dy
+                x0 += sx
+            if e2 <= dx:
+                err += dx
+                y0 += sy
+            # 为直线上的点赋值1
+            if 0 <= x0 < canvas_size[0] and 0 <= y0 < canvas_size[1]:  # 确保点在画布范围内
+                canvas[y0, x0] = 1
+                # 根据直线宽度修改周围的点
+                for iii in range(1, line_width):
+                    if 0 <= y0 + iii < canvas_size[1]:
+                        canvas[y0 + iii, x0] = 1
+                    if 0 <= y0 - iii < canvas_size[1]:
+                        canvas[y0 - iii, x0] = 1
+
+    # 画直线
+    bresenham_line(end_x1, end_y1, end_x2, end_y2)
+
+    # 可视化画布和直线
+    plt.imshow(canvas, cmap='Greys', interpolation='nearest')
+    plt.title(f'Line at ({center_position}), Angle: {angle}°')
+    plt.show()
+
+
+# 调用函数示例
+def LGN_on_off(x, y, angle):
+    draw_line_on_canvas(center_position=(x, y), angle=angle)
+    draw_line_on_canvas(center_position=(round(x + 3 * np.cos(90 - angle)), round(y - 3 * np.sin(90 - angle))),
+                        angle=angle)
+
+
+LGN_on_off(5, 5, 90)
 
 
 # modify this code so that each time I can draw two 12 x 12 matrices simultaneously, and save them to a file.
