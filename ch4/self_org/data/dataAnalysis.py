@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import os
 from sklearn.model_selection import KFold
 
 def cal_resample(data=None, times=5000, return_all=False):
@@ -19,59 +21,37 @@ def cal_resample(data=None, times=5000, return_all=False):
         return _mean, _5, _95, iter_mean
     else:
         return _mean, _5, _95
+def load_and_preprocess(file_path):
+    df = pd.read_csv(file_path, sep='\t')
+
+    # 提取有用的列并转换为列表
+    df['Input'] = df[[col for col in df.columns if col.startswith("#Input")]].values.tolist()
+    df['Hidden'] = df[[col for col in df.columns if col.startswith("#Hidden")]].values.tolist()
+    # import pdb ; pdb.set_trace()
+    # 删除原始列
+    df.drop([col for col in df.columns if col.startswith("#")], axis=1, inplace=True)
+
+    return df
 
 
-# Load the dataset
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0304_1_.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_epc100trl100.csv"
-path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_probes14_100epoch.csv"
-df = pd.read_csv(path_name, sep='\t')
+def load_all_time_points(base_path, time_points):
+    all_data = {}
+    for time_point in time_points:
+        file_path = os.path.join(base_path, f"time{time_point}.csv")
+        if os.path.exists(file_path):
+            all_data[time_point] = load_and_preprocess(file_path)
+        else:
+            print(f"File {file_path} does not exist.")
+    return all_data
 
-num_test_probes = len(df['$TrialName'].unique()) - 1
 
-# delete the first num_test_probes rows
-df = df.iloc[num_test_probes:]
-# reindex the dataframe
-df.index = range(len(df))
+# 示例：加载所有时间点的数据
+time_points = [0, 5, 10, 16, 20, 25, 30]  # 假设这是你所有的时间点
+base_path = ("/gpfs/milgram/scratch60/turk-browne/kp578/chanales/"
+             "self_org/TrainGI_0.5_TestGi_0.5_MaxEpcs_100_saveEvery5EpochFor30Epochs/")
+all_data = load_all_time_points(base_path, time_points)
 
-stimuli_names = df['$TrialName'].unique()
-
-# Find columns that begin with the specified prefixes
-v1actm_cols = [col for col in df.columns if col.startswith("#V1ActM")]
-lgnonact_cols = [col for col in df.columns if col.startswith("#LGNonAct")]
-lgnoffact_cols = [col for col in df.columns if col.startswith("#LGNoffAct")]
-
-# Merge the columns by summing their values
-df['V1ActM'] = df[v1actm_cols].values.tolist()
-df['LGNonAct'] = df[lgnonact_cols].values.tolist()
-df['LGNoffAct'] = df[lgnoffact_cols].values.tolist()
-
-# Drop the original columns
-df.drop(v1actm_cols + lgnonact_cols + lgnoffact_cols, axis=1, inplace=True)
-
-# extract the V1ActM, for the $TrialName L
-def extract_columns(df, trial_name, column_name):
-    ll = df[df['$TrialName'] == trial_name][column_name]
-    # reindex the list of lists
-    ll.index = range(len(ll))
-    ll_array = np.zeros((len(ll), len(ll[0])))
-    for ii, l in enumerate(ll):
-        ll_array[ii, :] = l
-
-    return ll_array
-
-# Extract the V1ActM for the specified trial
-layerName = "V1ActM"  # or "LGNoffAct" or "V1ActM"
-stimuli_act = {}
-for stimuli_name in stimuli_names:
-    ll = extract_columns(df, stimuli_name, layerName)
-    stimuli_act[stimuli_name] = ll
-
-print(f"stimuli_act[stimuli_name].shape: {ll.shape}")
-
-import numpy as np
-import matplotlib.pyplot as plt
-
+# print(all_data[0].head())
 
 def compute_correlation_matrix(stimuli):
     """Compute the correlation matrix for a set of stimuli representations."""
@@ -84,19 +64,69 @@ def compute_correlation_matrix(stimuli):
     return correlation_matrix
 
 
-def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
+def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=30, layerName="Hidden"):
     # Compute correlation matrices for before and after learning
-    before_learning = compute_correlation_matrix([s[before_learning_ID, :] for s in stimuli])  # First row for before learning
-    after_learning = compute_correlation_matrix([s[after_learning_ID, :] for s in stimuli])  # Second row for after learning
+    before_learning = compute_correlation_matrix([s for s in stimuli[before_learning_ID][layerName]])
+    after_learning = compute_correlation_matrix([s for s in stimuli[after_learning_ID][layerName]])
+
+    # 计算nan的个数
+    nan_count_before = np.isnan(before_learning).sum()
+    nan_count_after = np.isnan(after_learning).sum()
+    print(f"Before learning: {nan_count_before} NaNs")
+    print(f"After learning: {nan_count_after} NaNs")
+    # 计算0的个数
+    zero_count_before = (before_learning == 0).sum()
+    zero_count_after = (after_learning == 0).sum()
+    print(f"Before learning: {zero_count_before} zeros")
+    print(f"After learning: {zero_count_after} zeros")
 
     # Compute the difference matrix (learning effect)
     learning_effect = after_learning - before_learning
+    # learning_effect after_learning  before_learning 对于以上的三个 55x55 的矩阵, 去除三个矩阵的包含nan的元素, 以及对角线以下的元素, 注意三个矩阵必须同时去除相同位置的元素
+    """
+    Python 中计算相关系数时可能会产生NaN（Not a Number）结果。这主要发生在以下几种情况：
+    
+    全零序列：如果至少有一个输入序列完全由零组成，那么其标准差为零，导致分母为零，从而产生NaN。
+    
+    单一值序列：如果输入序列中的所有值都相同（例如，一个序列全是1），那么该序列的方差为零，导致计算相关系数时分母为零，从而产生NaN。
+    
+    包含NaN值：如果输入序列中包含NaN值，根据处理方式，计算结果可能为NaN。
+    """
+    def remove_nan_and_lower_diagonal_elements(before_learning, after_learning, learning_effect):
+        # 获取上三角矩阵的索引
+        i_upper = np.triu_indices_from(before_learning, k=1)
 
-    # extract upper matrices for plotting
-    before_learning_reshaped = before_learning[np.triu_indices(len(stimuli), k=1)]
-    after_learning_reshaped = after_learning[np.triu_indices(len(stimuli), k=1)]
-    learning_effect_reshaped = learning_effect[np.triu_indices(len(stimuli), k=1)]
+        # 获取不含 NaN 的索引
+        valid_idx = ~np.isnan(before_learning[i_upper]) & ~np.isnan(after_learning[i_upper]) & ~np.isnan(
+            learning_effect[i_upper])
 
+        # 应用索引过滤
+        filtered_before_learning = before_learning[i_upper][valid_idx]
+        filtered_after_learning = after_learning[i_upper][valid_idx]
+        filtered_learning_effect = learning_effect[i_upper][valid_idx]
+
+        return filtered_before_learning, filtered_after_learning, filtered_learning_effect
+
+    before_learning_reshaped, after_learning_reshaped, learning_effect_reshaped = remove_nan_and_lower_diagonal_elements(
+        before_learning, after_learning, learning_effect)
+
+    # 计算nan的个数
+    nan_count_before = np.isnan(before_learning_reshaped).sum()
+    nan_count_after = np.isnan(after_learning_reshaped).sum()
+    nan_count_effect = np.isnan(learning_effect_reshaped).sum()
+    print(f"Before learning: {nan_count_before} NaNs")
+    print(f"After learning: {nan_count_after} NaNs")
+    print(f"Learning effect: {nan_count_effect} NaNs")
+
+    # 计算0的个数
+    zero_count_before = (before_learning_reshaped == 0).sum()
+    zero_count_after = (after_learning_reshaped == 0).sum()
+    zero_count_effect = (learning_effect_reshaped == 0).sum()
+    print(f"reshaped Before learning: {zero_count_before} zeros")
+    print(f"reshaped After learning: {zero_count_after} zeros")
+    print(f"reshaped Learning effect: {zero_count_effect} zeros")
+
+    import pdb; pdb.set_trace()
     # Plot learning curve
     plt.figure(figsize=(10, 6))
     xAxis = 'before learning'
@@ -161,10 +191,12 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
     plt.show()
 
 
-print(f"available time points: {stimuli_act['H'].shape[0]}")
-rep_NMPH(list(stimuli_act.values()),
-         before_learning_ID=0,
-         after_learning_ID=8)
+print(f"available time points: {time_points}")
+rep_NMPH(
+    all_data,
+    layerName = "Hidden",
+    before_learning_ID=0,  # time_points = [0, 5, 10, 16, 20, 25, 30]  # 假设这是你所有的时间点
+    after_learning_ID=30)
 
 
 
