@@ -56,50 +56,43 @@ def visualize_prob():
         
     """
 
-# def new_probes():
-#     new_prob = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/matrix.npy"
-#     new_prob = np.load(new_prob)  # 5x12x12
-#     # append these new probes to the old probes, the new_prob $Name is "X1" to "X5", then save the new probes to a new probes_new.tsv
-def append_new_probes():
-    import pandas as pd
-    import numpy as np
-    # Load the old probes
-    file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes.tsv'  # Adjust the path as necessary
-    probes_df = pd.read_csv(file_path, sep='\t')
 
-    # Load the new probe matrices
-    new_prob_path = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/matrix.npy"  # Adjust the path as necessary
-    new_prob_matrices = np.load(new_prob_path)  # Assuming this is 5x12x12
-
-    # Generate new probe rows
-    for i, matrix in enumerate(new_prob_matrices):
-        # Initialize the new row with the name and then placeholder values for each grid point
-        new_row = [f'X{i + 1}'] + list(matrix.flatten())
-
-        # Append the new row to the DataFrame
-        probes_df = pd.concat([probes_df, pd.DataFrame([new_row])], ignore_index=True)
-
-    # Define the new header based on the original structure, adjusting for any non-matrix columns if necessary
-    header = ['$Name'] + [f'%LGNon[2:{i},{j}]' for i in range(12) for j in
-                          range(12)]  # Adjust if you have both LGNon and LGNoff
-
-    # Save the updated dataframe to a new TSV file
-    new_file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes_new.tsv'
-    probes_df.to_csv(new_file_path, sep='\t', index=False, header=header)
-
-
-append_new_probes()
+def cal_resample(data=None, times=5000, return_all=False):
+    # 这个函数的目的是为了针对输入的数据，进行有重复的抽取5000次，然后记录每一次的均值，最后输出这5000次重采样的均值分布    的   均值和5%和95%的数值。
+    if data is None:
+        raise Exception
+    if type(data) == list:
+        data = np.asarray(data)
+    iter_mean = []
+    for _ in range(times):
+        iter_distri = data[np.random.choice(len(data), len(data), replace=True)]
+        iter_mean.append(np.nanmean(iter_distri))
+    _mean = np.mean(iter_mean)
+    _5 = np.percentile(iter_mean, 5)
+    _95 = np.percentile(iter_mean, 95)
+    if return_all:
+        return _mean, _5, _95, iter_mean
+    else:
+        return _mean, _5, _95
 
 
 import pandas as pd
 import numpy as np
-
+from sklearn.model_selection import KFold
 # Load the dataset
 # path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0304_1_.csv"
-path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_epc100trl100.csv"
+# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_epc100trl100.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_probes14_100epoch.csv"
 df = pd.read_csv(path_name, sep='\t')
-# delete the first 4 rows
-df = df.iloc[4:]
+
+num_test_probes = len(df['$TrialName'].unique()) - 1
+
+# delete the first num_test_probes rows
+df = df.iloc[num_test_probes:]
+# reindex the dataframe
+df.index = range(len(df))
+
+stimuli_names = df['$TrialName'].unique()
 
 # Find columns that begin with the specified prefixes
 v1actm_cols = [col for col in df.columns if col.startswith("#V1ActM")]
@@ -126,13 +119,13 @@ def extract_columns(df, trial_name, column_name):
     return ll_array
 
 # Extract the V1ActM for the specified trial
-layerName = "LGNonAct"  # or "LGNoffAct" or "V1ActM"
-H_act = extract_columns(df, "H", layerName)
-L_act = extract_columns(df, "L", layerName)
-V_act = extract_columns(df, "V", layerName)
-R_act = extract_columns(df, "R", layerName)
+layerName = "V1ActM"  # or "LGNoffAct" or "V1ActM"
+stimuli_act = {}
+for stimuli_name in stimuli_names:
+    ll = extract_columns(df, stimuli_name, layerName)
+    stimuli_act[stimuli_name] = ll
 
-print(f"H_act.shape: {H_act.shape}")
+print(f"stimuli_act[stimuli_name].shape: {ll.shape}")
 
 """
 I have four matrices whose shape is (2, 196). Their names are v1actm_H, v1actm_L, v1actm_V, and v1actm_R, corresponding to the stimuli H, L, V, and R, respectively.
@@ -156,38 +149,88 @@ def compute_correlation_matrix(stimuli):
     num_stimuli = len(stimuli)
     correlation_matrix = np.zeros((num_stimuli, num_stimuli))
     for i in range(num_stimuli):
-        for j in range(num_stimuli):
+        for j in range(i+1, num_stimuli):
             # Compute correlation for trial 0 (before learning) and trial 1 (after learning) separately
-            correlation_matrix[i, j] = np.corrcoef(stimuli[i][0], stimuli[j][0])[0, 1]
+            correlation_matrix[i, j] = np.corrcoef(stimuli[i], stimuli[j])[0, 1]
     return correlation_matrix
 
 
-def rep_NMPH(v1actm_H, v1actm_L, v1actm_V, v1actm_R):
+def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
     # Organize stimuli representations into a list for easier processing
-    stimuli = [v1actm_H, v1actm_L, v1actm_V, v1actm_R]
+    # stimuli = [v1actm_H, v1actm_L, v1actm_V, v1actm_R]
 
     # Compute correlation matrices for before and after learning
-    before_learning = compute_correlation_matrix([s[0:1] for s in stimuli])  # First row for before learning
-    after_learning = compute_correlation_matrix([s[1:2] for s in stimuli])  # Second row for after learning
+    before_learning = compute_correlation_matrix([s[before_learning_ID, :] for s in stimuli])  # First row for before learning
+    after_learning = compute_correlation_matrix([s[after_learning_ID, :] for s in stimuli])  # Second row for after learning
 
     # Compute the difference matrix (learning effect)
     learning_effect = after_learning - before_learning
 
-    # Reshape matrices for plotting
-    before_learning_reshaped = before_learning.reshape(1, -1)
-    learning_effect_reshaped = learning_effect.reshape(1, -1)
+    # extract upper matrices for plotting
+    before_learning_reshaped = before_learning[np.triu_indices(len(stimuli), k=1)]
+    learning_effect_reshaped = learning_effect[np.triu_indices(len(stimuli), k=1)]
 
     # Plot learning curve
     plt.figure(figsize=(10, 6))
-    plt.scatter(before_learning_reshaped[0], learning_effect_reshaped[0])
+    plt.scatter(before_learning_reshaped, learning_effect_reshaped)
     plt.xlabel('Before Learning (Correlation)')
     plt.ylabel('Learning Effect (Difference in Correlation)')
-    plt.title('Learning Curve Based on Neural Representation Similarity')
-    plt.grid(True)
+    plt.title(f"Learning Curve (NMPH) - {before_learning_ID} vs {after_learning_ID}")
+    # plt.grid(True)
+
+    # Define a cubic curve function
+    def cubic_curve(x, a, b, c, d):
+        return a * x ** 3 + b * x ** 2 + c * x + d
+
+    # Fit the cubic curve to the data
+    from scipy.optimize import curve_fit
+    params, _ = curve_fit(cubic_curve, before_learning_reshaped, learning_effect_reshaped)
+
+    # Generate y-values for the fitted curve over a range of x-values
+    x_fit = np.linspace(before_learning_reshaped.min(), before_learning_reshaped.max(), 100)
+    y_fit = cubic_curve(x_fit, *params)
+    plt.plot(x_fit, y_fit, color='red', label='Cubic Fit')
     plt.show()
 
+    # 5折交叉验证函数
+    def cross_validate_cubic_fit(x_data, y_data):
+        kf = KFold(n_splits=5, shuffle=True, random_state=42)
+        correlation_scores = []
+
+        for train_index, test_index in kf.split(x_data):
+            x_train, x_test = x_data[train_index], x_data[test_index]
+            y_train, y_test = y_data[train_index], y_data[test_index]
+
+            # 拟合模型
+            params, _ = curve_fit(cubic_curve, x_train, y_train)
+
+            # 在测试集上评估模型
+            y_pred = cubic_curve(x_test, *params)
+            corr = np.corrcoef(y_pred, y_test)[0, 1]
+            correlation_scores.append(corr)
+        _mean, _5, _95 = cal_resample(correlation_scores)
+
+        return _mean, _5, _95
+
+
+    # 执行5折交叉验证
+    _mean, _5, _95 = cross_validate_cubic_fit(before_learning_reshaped, learning_effect_reshaped)
+    yerr = np.array([[_mean - _5], [_95 - _mean]]).reshape(2, 1)
+
+    # 画出带有误差线的条状图
+    plt.figure(figsize=(10, 6))
+    plt.bar(x='Mean', height=_mean, yerr=yerr, capsize=10)
+    plt.xlabel('Error Bar')
+    plt.ylabel('Correlation between Predicted and Observed Values')
+    plt.title('5-Fold Cross-Validation of Cubic Fit')
+    plt.show()
+
+
 # Example usage (assuming you have the matrices v1actm_H, v1actm_L, v1actm_V, v1actm_R defined)
-rep_NMPH(H_act, L_act, V_act, R_act)
+print(f"available time points: {stimuli_act['H'].shape[0]}")
+rep_NMPH(list(stimuli_act.values()),
+         before_learning_ID=0,
+         after_learning_ID=8)
 
 
 
