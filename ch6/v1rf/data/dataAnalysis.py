@@ -62,13 +62,27 @@ def visualize_prob():
     # # Visualize each matrix pair (%LGNon and %LGNoff) side by side for each category
     # fig, axes = plt.subplots(len(categories), 2, figsize=(10, 10*len(categories)))
 
-    for i, category in enumerate(categories):
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-        for j, type_ in enumerate(types):
-            axes[j].matshow(matrices[category][type_], cmap='viridis')
-            axes[j].set_title(f'{category} - {type_}')
-        plt.show()
+    # for i, category in enumerate(categories):
+    #     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    #     for j, type_ in enumerate(types):
+    #         axes[j].matshow(matrices[category][type_], cmap='viridis')
+    #         axes[j].set_title(f'{category} - {type_}')
+    #     plt.show()
+    # Visualize each matrix pair (%LGNon and %LGNoff) in one figure with a 3x8 layout
+    from matplotlib.gridspec import GridSpec
+    fig = plt.figure(figsize=(20, 10))
+    gs = GridSpec(3, 8, figure=fig, hspace=0.3, wspace=0.3)
 
+    for i, category in enumerate(categories):
+        for j, type_ in enumerate(types):
+            ax = fig.add_subplot(gs[i // 4, (i % 4) * 2 + j])
+            cax = ax.matshow(matrices[category][type_], cmap='viridis')
+            ax.set_title(f'{category} - {type_}')
+            fig.colorbar(cax, ax=ax, fraction=0.046, pad=0.04)
+
+    plt.show()
+
+#     修改这个代码使得所有的图都在一个figure里面, 这一个总体的figure的排列方式是3行4列, 因为总共有12个图. 其中每一个图分为两个部分, 分别是%LGNon和%LGNoff, 也就是一共有24个图.
 
 
 def cal_resample(data=None, times=5000, return_all=False):
