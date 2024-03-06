@@ -802,23 +802,59 @@ func (ss *Sim) ConfigTrnEpcPlot(plt *eplot.Plot2D, dt *etable.Table) *eplot.Plot
 // LogTstTrl 将当前试验的数据添加到 TstTrlLog 表中。
 // 记录始终包含测试项的数量。
 func (ss *Sim) LogTstTrl(dt *etable.Table) {
+	// 获取各个神经层
+	LGNonLayer := ss.Net.LayerByName("LGNon").(leabra.LeabraLayer).AsLeabra()
+	LGNoffLayer := ss.Net.LayerByName("LGNoff").(leabra.LeabraLayer).AsLeabra()
+	V1Layer := ss.Net.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+	// // 获取输入层的激活值
+	// LGNonAct := LGNonLayer.Pools[0].ActM.Avg
+	// LGNoffAct := LGNoffLayer.Pools[0].ActM.Avg
+	// // 获取神经网络的激活值
+	// V1Act := V1Layer.Pools[0].ActM.Avg
+	// // 获取当前试验的值
+	// trl := ss.TestEnv.Trial.Cur
+	// // 使用当前试验作为行索引
+	// row := trl
 
 	// 获取先前的时代值，这是通过递增触发的，因此使用先前的值
 	epc := ss.TrainEnv.Epoch.Prv // this is triggered by increment so use previous value
 
 	// 获取当前试验的值
 	trl := ss.TestEnv.Trial.Cur
+
 	// 使用当前试验作为行索引
-	row := trl
+	// row := trl
+
 	// 如果数据表的行数小于等于当前试验索引，则增加行数
-	if dt.Rows <= row {
-		dt.SetNumRows(row + 1)
-	}
+	// if dt.Rows <= row {
+	// 	dt.SetNumRows(row + 1)
+	// }
+	row := dt.Rows
+	dt.SetNumRows(row + 1)
+
 	// 将各种数据添加到表格中
 	dt.SetCellFloat("Run", row, float64(ss.TrainEnv.Run.Cur))
 	dt.SetCellFloat("Epoch", row, float64(epc))
 	dt.SetCellFloat("Trial", row, float64(trl))
 	dt.SetCellString("TrialName", row, ss.TestEnv.TrialName.Cur)
+
+	// 遍历神经网络的层名称
+	ivt := ss.ValsTsr("Input")  // ivt := ss.ValsTsrs["LGNonAct"]   // ValsTsrs    map[string]*etensor.Float32 `view:"-" desc:"for holding layer values"`
+	hvt := ss.ValsTsr("Hidden") // &etensor.Float32{} //
+
+	// 获取输入层的激活值 并且保存在dt中
+	// LGNonLayer.UnitValsTensor(ivt, "Act")
+	LGNonLayer.UnitValsTensor(ivt, "Act") // AvgSLrn
+	dt.SetCellTensor("LGNonAct", row, ivt)
+
+	// 获取输出层的激活值 并且保存在dt中
+	LGNoffLayer.UnitValsTensor(ivt, "Act")
+	dt.SetCellTensor("LGNoffAct", row, ivt)
+
+	// 获取神经网络的激活值 并且保存在dt中
+	V1Layer.UnitValsTensor(hvt, "AvgSLrn")
+	dt.SetCellTensor("V1ActM", row, hvt)
+
 	// 遍历神经网络的层名称
 	for _, lnm := range ss.LayStatNms {
 		// 获取神经网络中具有给定名称的层
