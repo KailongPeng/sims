@@ -1,3 +1,28 @@
+"""
+Two ways to solve the current issue:
+    One is to change the training and testing paradigm to be train some first test train a lot and then test
+    The other way is to drastically increase the number of trials in the test probes.
+        Create a python GUI so that I can draw in a 12x12 matrix whose values are 0 or 1. The save the matrix for further use.
+        Create a simple GUI for drawing in a 12x12 matrix and saving the matrix values (0 or 1).
+        Create a simple way for me to draw in a 12x12 matrix and saving the matrix values (0 or 1).
+
+
+"""
+
+"""
+I have four matrices whose shape is (2, 196). Their names are v1actm_H, v1actm_L, v1actm_V, and v1actm_R, corresponding to the stimuli H, L, V, and R, respectively.
+(2, 196) means that each matrix has 2 rows and 196 columns, corresponding to 2 trials, one before learning and one after learning.
+196 is the number of neurons in the V1 region.
+
+Now I will use correlation to compare the similarity between each stimuli H, L, V, and R.
+This way for before learning and after learning, I will two 4 x 4 matrices, each of which will represent the similarity between the stimuli representations.
+Now use the difference between the two matrices (after minus before) as a measure of learning or y axis of the learning curve, in other words, difference matrix is 4x4, reshape it to 1x16 and plot it as the y axis of the learning curve. 
+Use the before learning matrix as the x axis of the learning curve. In other words, reshape the before learning matrix to 1x16 and plot it as the x axis of the learning curve.
+Now plot the learning curve.
+
+code the whole process in a function called `rep_NMPH` whose input is v1actm_H, v1actm_L, v1actm_V, and v1actm_R.
+"""
+
 def visualize_prob():
     import pandas as pd
     import numpy as np
@@ -45,17 +70,6 @@ def visualize_prob():
         plt.show()
 
 
-    """
-    Two ways to solve the current issue:
-        One is to change the training and testing paradigm to be train some first test train a lot and then test
-        The other way is to drastically increase the number of trials in the test probes.
-            Create a python GUI so that I can draw in a 12x12 matrix whose values are 0 or 1. The save the matrix for further use.
-            Create a simple GUI for drawing in a 12x12 matrix and saving the matrix values (0 or 1).
-            Create a simple way for me to draw in a 12x12 matrix and saving the matrix values (0 or 1).
-
-        
-    """
-
 
 def cal_resample(data=None, times=5000, return_all=False):
     # 这个函数的目的是为了针对输入的数据，进行有重复的抽取5000次，然后记录每一次的均值，最后输出这5000次重采样的均值分布    的   均值和5%和95%的数值。
@@ -79,6 +93,7 @@ def cal_resample(data=None, times=5000, return_all=False):
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import KFold
+
 # Load the dataset
 # path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0304_1_.csv"
 # path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_epc100trl100.csv"
@@ -127,19 +142,6 @@ for stimuli_name in stimuli_names:
 
 print(f"stimuli_act[stimuli_name].shape: {ll.shape}")
 
-"""
-I have four matrices whose shape is (2, 196). Their names are v1actm_H, v1actm_L, v1actm_V, and v1actm_R, corresponding to the stimuli H, L, V, and R, respectively.
-(2, 196) means that each matrix has 2 rows and 196 columns, corresponding to 2 trials, one before learning and one after learning.
-196 is the number of neurons in the V1 region.
-
-Now I will use correlation to compare the similarity between each stimuli H, L, V, and R.
-This way for before learning and after learning, I will two 4 x 4 matrices, each of which will represent the similarity between the stimuli representations.
-Now use the difference between the two matrices (after minus before) as a measure of learning or y axis of the learning curve, in other words, difference matrix is 4x4, reshape it to 1x16 and plot it as the y axis of the learning curve. 
-Use the before learning matrix as the x axis of the learning curve. In other words, reshape the before learning matrix to 1x16 and plot it as the x axis of the learning curve.
-Now plot the learning curve.
- 
-code the whole process in a function called `rep_NMPH` whose input is v1actm_H, v1actm_L, v1actm_V, and v1actm_R.
-"""
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -232,7 +234,6 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
     plt.show()
 
 
-# Example usage (assuming you have the matrices v1actm_H, v1actm_L, v1actm_V, v1actm_R defined)
 print(f"available time points: {stimuli_act['H'].shape[0]}")
 rep_NMPH(list(stimuli_act.values()),
          before_learning_ID=0,
