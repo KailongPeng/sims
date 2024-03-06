@@ -156,9 +156,6 @@ def compute_correlation_matrix(stimuli):
 
 
 def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
-    # Organize stimuli representations into a list for easier processing
-    # stimuli = [v1actm_H, v1actm_L, v1actm_V, v1actm_R]
-
     # Compute correlation matrices for before and after learning
     before_learning = compute_correlation_matrix([s[before_learning_ID, :] for s in stimuli])  # First row for before learning
     after_learning = compute_correlation_matrix([s[after_learning_ID, :] for s in stimuli])  # Second row for after learning
@@ -168,12 +165,20 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
 
     # extract upper matrices for plotting
     before_learning_reshaped = before_learning[np.triu_indices(len(stimuli), k=1)]
+    after_learning_reshaped = after_learning[np.triu_indices(len(stimuli), k=1)]
     learning_effect_reshaped = learning_effect[np.triu_indices(len(stimuli), k=1)]
 
     # Plot learning curve
     plt.figure(figsize=(10, 6))
-    plt.scatter(before_learning_reshaped, learning_effect_reshaped)
-    plt.xlabel('Before Learning (Correlation)')
+    xAxis = 'before learning'
+    if xAxis == 'before learning':
+        xAxisData = before_learning_reshaped
+        plt.scatter(xAxisData, learning_effect_reshaped)
+        plt.xlabel('Before Learning (Correlation)')
+    else:
+        xAxisData = after_learning_reshaped
+        plt.scatter(xAxisData, learning_effect_reshaped)
+        plt.xlabel('After Learning (Correlation)')
     plt.ylabel('Learning Effect (Difference in Correlation)')
     plt.title(f"Learning Curve (NMPH) - {before_learning_ID} vs {after_learning_ID}")
     # plt.grid(True)
@@ -184,10 +189,11 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
 
     # Fit the cubic curve to the data
     from scipy.optimize import curve_fit
-    params, _ = curve_fit(cubic_curve, before_learning_reshaped, learning_effect_reshaped)
+
+    params, _ = curve_fit(cubic_curve, xAxisData, learning_effect_reshaped)
 
     # Generate y-values for the fitted curve over a range of x-values
-    x_fit = np.linspace(before_learning_reshaped.min(), before_learning_reshaped.max(), 100)
+    x_fit = np.linspace(xAxisData.min(), xAxisData.max(), 100)
     y_fit = cubic_curve(x_fit, *params)
     plt.plot(x_fit, y_fit, color='red', label='Cubic Fit')
     plt.show()
@@ -214,7 +220,7 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
 
 
     # 执行5折交叉验证
-    _mean, _5, _95 = cross_validate_cubic_fit(before_learning_reshaped, learning_effect_reshaped)
+    _mean, _5, _95 = cross_validate_cubic_fit(xAxisData, learning_effect_reshaped)
     yerr = np.array([[_mean - _5], [_95 - _mean]]).reshape(2, 1)
 
     # 画出带有误差线的条状图
