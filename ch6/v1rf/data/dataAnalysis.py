@@ -112,9 +112,20 @@ from sklearn.model_selection import KFold
 # path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0304_1_.csv"
 # path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_epc100trl100.csv"
 path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_probes14_100epoch.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_InhibLateralScale_0.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v2.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v3.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v4.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v5.csv"
+path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_InhibLateralScale_0_v2.csv"
+# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_InhibLateralScale_0.csv"
+
 df = pd.read_csv(path_name, sep='\t')
 
 num_test_probes = len(df['$TrialName'].unique()) - 1
+print(f"num_test_probes: {num_test_probes}")
 
 # delete the first num_test_probes rows
 df = df.iloc[num_test_probes:]
@@ -185,15 +196,19 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
     learning_effect_reshaped = learning_effect[np.triu_indices(len(stimuli), k=1)]
 
     # Plot learning curve
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 6))  # 设置图表大小
     xAxis = 'before learning'
     if xAxis == 'before learning':
         xAxisData = before_learning_reshaped
-        plt.scatter(xAxisData, learning_effect_reshaped)
+        plt.scatter(xAxisData, learning_effect_reshaped,
+                    color='grey', alpha=0.7, edgecolors='w', s=100,
+                    label='Data Points')  # 增加标签，改变点的颜色和大小
         plt.xlabel('Before Learning (Correlation)')
     else:
         xAxisData = after_learning_reshaped
-        plt.scatter(xAxisData, learning_effect_reshaped)
+        plt.scatter(xAxisData, learning_effect_reshaped,
+                    color='grey', alpha=0.7, edgecolors='w', s=100,
+                    label='Data Points')  # 增加标签，改变点的颜色和大小
         plt.xlabel('After Learning (Correlation)')
     plt.ylabel('Learning Effect (Difference in Correlation)')
     plt.title(f"Learning Curve (NMPH) - {before_learning_ID} vs {after_learning_ID}")
@@ -211,7 +226,8 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
     # Generate y-values for the fitted curve over a range of x-values
     x_fit = np.linspace(xAxisData.min(), xAxisData.max(), 100)
     y_fit = cubic_curve(x_fit, *params)
-    plt.plot(x_fit, y_fit, color='red', label='Cubic Fit')
+    plt.plot(x_fit, y_fit, color='crimson', linewidth=3, label='Cubic Fit')  # 增加线宽，改变颜色
+
     plt.show()
 
     # 5折交叉验证函数
@@ -241,17 +257,76 @@ def rep_NMPH(stimuli, before_learning_ID=0, after_learning_ID=1):
 
     # 画出带有误差线的条状图
     plt.figure(figsize=(10, 6))
-    plt.bar(x='Mean', height=_mean, yerr=yerr, capsize=10)
-    plt.xlabel('Error Bar')
+    plt.bar(x='Mean', height=_mean, yerr=yerr, capsize=10, color='grey',
+            edgecolor='black', linewidth=1.5)
+    # plt.xlabel('Error Bar')
+    # remove x ticks
+    plt.xticks([])
     plt.ylabel('Correlation between Predicted and Observed Values')
     plt.title('5-Fold Cross-Validation of Cubic Fit')
+    plt.margins(y=0.1)
     plt.show()
+
+    # 画出binning analysis的图
+    """
+    给出一个函数， 输入是x和y， 输出是x和y的binning analysis的结果
+    每一个bin的x的值是这个bin的中值，y的值是这个bin的均值和标准差
+    每一个bin的宽度是所有x的range的1/10
+    第一个bin的位置在所有x的最小值的位置,第二个bin的位置在第一个bin的位置加上bin的宽度的1/9，以此类推
+    最后画出这个binning analysis的结果，也就是每一个bin的中值和均值和标准差，结果应该是一个bar plot。
+    """
+
+    def binning_analysis_with_resample(x, y):
+        x_min, x_max = np.min(x), np.max(x)
+        range_x = x_max - x_min
+        bin_width = range_x / 10
+        total_bins = int(np.ceil(range_x / (bin_width / 9)))  # 计算总的bins数量
+
+        # 初始化列表来存储每个bin的中值、y的均值、5%和95%置信区间
+        bin_middles = []
+        y_means = []
+        conf_lower = []
+        conf_upper = []
+
+        # 计算bins的统计数据
+        for i in range(total_bins):
+            bin_start = x_min + (bin_width / 9) * i
+            bin_end = bin_start + bin_width
+            mask = (x >= bin_start) & (x < bin_end)
+            x_current = x[mask]
+            y_current = y[mask]
+
+            if len(y_current) > 0:
+                bin_middle = (bin_start + bin_end) / 2
+                mean, lower, upper = cal_resample(y_current, times=500, return_all=False)  # 使用500次而不是5000次以提高性能
+
+                bin_middles.append(bin_middle)
+                y_means.append(mean)
+                conf_lower.append(lower)
+                conf_upper.append(upper)
+
+        # 绘制线图
+        plt.figure(figsize=(10, 6))  # 设置图表大小
+        plt.plot(bin_middles, y_means, 'r', label='Mean')  # 红色线表示均值
+        plt.plot(bin_middles, conf_lower, 'gray', linestyle='--', label='5% percentile')  # 灰色线表示5%置信区间
+        plt.plot(bin_middles, conf_upper, 'gray', linestyle='--', label='95% percentile')  # 灰色线表示95%置信区间
+        plt.fill_between(bin_middles, conf_lower, conf_upper, color='gray', alpha=0.2)  # 填充5%和95%置信区间之间的区域
+        # 在y=0处添加绿色虚线
+        plt.axhline(y=0, color='green', linestyle='--', alpha=0.5)  # 绿色虚线，一定的透明度
+
+        plt.xlabel('X bin middle')
+        plt.ylabel('Y resampled statistics')
+        plt.title('Binning Analysis with Resampled Confidence Intervals')
+        plt.legend()
+        plt.show()
+
+    binning_analysis_with_resample(xAxisData, learning_effect_reshaped)
 
 
 print(f"available time points: {stimuli_act['H'].shape[0]}")
 rep_NMPH(list(stimuli_act.values()),
          before_learning_ID=0,
-         after_learning_ID=8)
+         after_learning_ID=-1)
 
 
 
