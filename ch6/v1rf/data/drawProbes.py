@@ -161,8 +161,11 @@ def generate_and_save_rectangles(num_calls, data_for_df):
 # 调用函数生成数据并保存
 file_path = '/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes.tsv'
 probes_df = pd.read_csv(file_path, sep='\t')
-probes_df = generate_and_save_rectangles(10, probes_df)
-probes_df.to_csv('/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes_new.tsv',
+# probes_df = generate_and_save_rectangles(10, probes_df)
+# probes_df.to_csv('/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes_new.tsv',
+#                  sep='\t', index=False)
+probes_df = generate_and_save_rectangles(20, probes_df)
+probes_df.to_csv('/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/probes_new20.tsv',
                  sep='\t', index=False)
 
 
