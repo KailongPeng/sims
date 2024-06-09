@@ -31,7 +31,9 @@ import (
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
 	"github.com/emer/etable/etview" // include to get gui views
+
 	"github.com/emer/leabra/leabra"
+	// "github.com/PrincetonCompMemLab/neurodiff_leabra/leabra"
 	"github.com/goki/gi/gi"
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
@@ -83,20 +85,20 @@ var ParamSets = params.Sets{
 				Params: params.Params{
 					"Prjn.WtScale.Rel": "0.2",
 				}},
-			{Sel: ".ExciteLateral", Desc: "lateral excitatory connection",
-				Params: params.Params{
-					"Prjn.WtInit.Mean": ".5",
-					"Prjn.WtInit.Var":  "0",
-					"Prjn.WtInit.Sym":  "false",
-					"Prjn.WtScale.Rel": "0.2",
-				}},
-			{Sel: ".InhibLateral", Desc: "lateral inhibitory connection",
-				Params: params.Params{
-					"Prjn.WtInit.Mean": "0",
-					"Prjn.WtInit.Var":  "0",
-					"Prjn.WtInit.Sym":  "false",
-					"Prjn.WtScale.Abs": "0.2",
-				}},
+			// {Sel: ".ExciteLateral", Desc: "lateral excitatory connection",
+			// 	Params: params.Params{
+			// 		"Prjn.WtInit.Mean": ".5",
+			// 		"Prjn.WtInit.Var":  "0",
+			// 		"Prjn.WtInit.Sym":  "false",
+			// 		"Prjn.WtScale.Rel": "0.2",
+			// 	}},
+			// {Sel: ".InhibLateral", Desc: "lateral inhibitory connection",
+			// 	Params: params.Params{
+			// 		"Prjn.WtInit.Mean": "0",
+			// 		"Prjn.WtInit.Var":  "0",
+			// 		"Prjn.WtInit.Sym":  "false",
+			// 		"Prjn.WtScale.Abs": "0.2",
+			// 	}},
 		},
 	}},
 }
@@ -202,11 +204,11 @@ func (ss *Sim) ConfigEnv() {
 		ss.MaxRuns = 1
 	}
 	if ss.MaxEpcs == 0 { // allow user override
-		ss.MaxEpcs = 5 // ss.MaxEpcs = 100
+		ss.MaxEpcs = 100 //5 // ss.MaxEpcs = 100
 		ss.NZeroStop = -1
 	}
 	if ss.MaxTrls == 0 { // allow user override
-		ss.MaxTrls = 10 // ss.MaxTrls = 100
+		ss.MaxTrls = 100 //10 // ss.MaxTrls = 100
 	}
 
 	ss.TrainEnv.Nm = "TrainEnv"
@@ -220,7 +222,7 @@ func (ss *Sim) ConfigEnv() {
 
 	ss.TestEnv.Nm = "TestEnv"
 	ss.TestEnv.Dsc = "testing (probe) params and state"
-	ss.TestEnv.Table = etable.NewIdxView(ss.Probes)
+	ss.TestEnv.Table = etable.NewIdxView(ss.Probes) // note: this is a pointer to the data; ss.Probes is updated by OpenPats; which is defined in ss.OpenPatAsset(ss.Probes, "probes.tsv", "Probes", "Probe inputs for testing")
 	ss.TestEnv.Sequential = true
 	ss.TestEnv.Validate()
 
@@ -238,16 +240,16 @@ func (ss *Sim) ConfigNet(net *leabra.Network) {
 	net.ConnectLayers(lgnOn, v1, full, emer.Forward)
 	net.ConnectLayers(lgnOff, v1, full, emer.Forward)
 
-	circ := prjn.NewCircle()
-	circ.TopoWts = true
-	circ.Radius = 4
-	circ.Sigma = .75
+	// circ := prjn.NewCircle()
+	// circ.TopoWts = true
+	// circ.Radius = 4
+	// circ.Sigma = .75
 
-	rec := net.ConnectLayers(v1, v1, circ, emer.Lateral)
-	rec.SetClass("ExciteLateral")
+	// rec := net.ConnectLayers(v1, v1, circ, emer.Lateral)
+	// rec.SetClass("ExciteLateral")
 
-	inh := net.ConnectLayers(v1, v1, full, emer.Inhib)
-	inh.SetClass("InhibLateral")
+	// inh := net.ConnectLayers(v1, v1, full, emer.Inhib)
+	// inh.SetClass("InhibLateral")
 
 	lgnOff.SetRelPos(relpos.Rel{Rel: relpos.RightOf, Other: "LGNon", YAlign: relpos.Front, Space: 2})
 	v1.SetRelPos(relpos.Rel{Rel: relpos.Above, Other: "LGNon", XAlign: relpos.Left, YAlign: relpos.Front, XOffset: 5, Space: 2})
@@ -649,13 +651,13 @@ func (ss *Sim) SetParams(sheet string, setMsg bool) error {
 		}
 	}
 
-	nt := ss.Net
-	v1 := nt.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
-	elat := v1.RcvPrjns[2].(*leabra.Prjn)
-	elat.WtScale.Rel = ss.ExcitLateralScale
-	elat.Learn.Learn = ss.ExcitLateralLearn
-	ilat := v1.RcvPrjns[3].(*leabra.Prjn)
-	ilat.WtScale.Abs = ss.InhibLateralScale
+	// nt := ss.Net
+	// v1 := nt.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+	// elat := v1.RcvPrjns[2].(*leabra.Prjn)
+	// elat.WtScale.Rel = ss.ExcitLateralScale
+	// elat.Learn.Learn = ss.ExcitLateralLearn
+	// ilat := v1.RcvPrjns[3].(*leabra.Prjn)
+	// ilat.WtScale.Abs = ss.InhibLateralScale
 
 	return err
 }
@@ -716,16 +718,20 @@ func (ss *Sim) OpenPats() {
 ////////////////////////////////////////////////////////////////////////////////////////////
 // 		Logging
 
-// ValsTsr gets value tensor of given name, creating if not yet made
+// ValsTsr 获取给定名称的值张量，如果尚未创建则进行创建// ValsTsr gets value tensor of given name, creating if not yet made
 func (ss *Sim) ValsTsr(name string) *etensor.Float32 {
+	// 检查是否已经初始化了值张量的映射
 	if ss.ValsTsrs == nil {
 		ss.ValsTsrs = make(map[string]*etensor.Float32)
 	}
+	// 尝试获取给定名称的值张量
 	tsr, ok := ss.ValsTsrs[name]
+	// 如果不存在，则创建一个新的 Float32 张量，并添加到映射中
 	if !ok {
 		tsr = &etensor.Float32{}
 		ss.ValsTsrs[name] = tsr
 	}
+	// 返回获取或新创建的值张量
 	return tsr
 }
 
@@ -865,9 +871,15 @@ func (ss *Sim) LogTstTrl(dt *etable.Table) {
 
 	// 注意：在从另一个 goroutine 调用时，使用 Go 版本的更新是至关重要的 // note: essential to use Go version of update when called from another goroutine
 	ss.TstTrlPlot.GoUpdate()
+
 }
 
 func (ss *Sim) ConfigTstTrlLog(dt *etable.Table) {
+	// set layer names
+	LGNonLayer := ss.Net.LayerByName("LGNon").(leabra.LeabraLayer).AsLeabra()
+	LGNoffLayer := ss.Net.LayerByName("LGNoff").(leabra.LeabraLayer).AsLeabra()
+	V1Layer := ss.Net.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+
 	dt.SetMetaData("name", "TstTrlLog")
 	dt.SetMetaData("desc", "Record of testing per input pattern")
 	dt.SetMetaData("read-only", "true")
@@ -883,6 +895,12 @@ func (ss *Sim) ConfigTstTrlLog(dt *etable.Table) {
 	for _, lnm := range ss.LayStatNms {
 		sch = append(sch, etable.Column{lnm + " ActM.Avg", etensor.FLOAT64, nil, nil})
 	}
+	sch = append(sch, etable.Schema{
+		{"LGNonAct", etensor.FLOAT64, LGNonLayer.Shp.Shp, nil},
+		{"LGNoffAct", etensor.FLOAT64, LGNoffLayer.Shp.Shp, nil},
+		{"V1ActM", etensor.FLOAT64, V1Layer.Shp.Shp, nil},
+	}...)
+
 	dt.SetFromSchema(sch, nt)
 }
 
