@@ -109,18 +109,8 @@ import numpy as np
 from sklearn.model_selection import KFold
 
 # Load the dataset
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0304_1_.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record0305_epc100trl100.csv"
-path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\1"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_InhibLateralScale_0.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v2.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v3.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v4.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_2_InhibLateralScale_0_2_v5.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_InhibLateralScale_0_v2.csv"
-# path_name = "/gpfs/milgram/scratch60/turk-browne/kp578/chanales/v1rf/record_v1rf_ExitLateralScale_0_InhibLateralScale_0.csv"
+path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round2_5timepoints"
+# path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round1_3timepoints"
 
 df = pd.read_csv(path_name, sep='\t')
 
@@ -161,7 +151,7 @@ def extract_columns(df, trial_name, column_name):
     return ll_array
 
 # Extract the V1ActM for the specified trial
-layerName = "ITActM"  # or "LGNoffAct" or "V1ActM" "ITActM"
+layerName = "V1ActM"  # or "LGNoffAct" or "V1ActM" "ITActM"
 stimuli_act = {}
 for stimuli_name in stimuli_names:
     ll = extract_columns(df, stimuli_name, layerName)
