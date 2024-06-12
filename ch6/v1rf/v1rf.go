@@ -31,7 +31,9 @@ import (
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
 	"github.com/emer/etable/etview" // include to get gui views
+
 	"github.com/emer/leabra/leabra"
+	// "github.com/PrincetonCompMemLab/neurodiff_leabra/leabra"
 	"github.com/goki/gi/gi"
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
@@ -83,20 +85,20 @@ var ParamSets = params.Sets{
 				Params: params.Params{
 					"Prjn.WtScale.Rel": "0.2",
 				}},
-			{Sel: ".ExciteLateral", Desc: "lateral excitatory connection",
-				Params: params.Params{
-					"Prjn.WtInit.Mean": ".5",
-					"Prjn.WtInit.Var":  "0",
-					"Prjn.WtInit.Sym":  "false",
-					"Prjn.WtScale.Rel": "0.2",
-				}},
-			{Sel: ".InhibLateral", Desc: "lateral inhibitory connection",
-				Params: params.Params{
-					"Prjn.WtInit.Mean": "0",
-					"Prjn.WtInit.Var":  "0",
-					"Prjn.WtInit.Sym":  "false",
-					"Prjn.WtScale.Abs": "0.2",
-				}},
+			// {Sel: ".ExciteLateral", Desc: "lateral excitatory connection",
+			// 	Params: params.Params{
+			// 		"Prjn.WtInit.Mean": ".5",
+			// 		"Prjn.WtInit.Var":  "0",
+			// 		"Prjn.WtInit.Sym":  "false",
+			// 		"Prjn.WtScale.Rel": "0.2",
+			// 	}},
+			// {Sel: ".InhibLateral", Desc: "lateral inhibitory connection",
+			// 	Params: params.Params{
+			// 		"Prjn.WtInit.Mean": "0",
+			// 		"Prjn.WtInit.Var":  "0",
+			// 		"Prjn.WtInit.Sym":  "false",
+			// 		"Prjn.WtScale.Abs": "0.2",
+			// 	}},
 		},
 	}},
 }
@@ -122,6 +124,7 @@ type Sim struct {
 	V1onWts           *etensor.Float32  `view:"-" desc:"weights from input to V1 layer"`
 	V1offWts          *etensor.Float32  `view:"-" desc:"weights from input to V1 layer"`
 	V1Wts             *etensor.Float32  `view:"no-inline" desc:"net on - off weights from input to V1 layer"`
+	ITWts             *etensor.Float32  `view:"-" desc:"weights from V1 to IT layer"`
 	MaxRuns           int               `desc:"maximum number of model runs to perform"`
 	MaxEpcs           int               `desc:"maximum number of epochs to run per model run"`
 	MaxTrls           int               `desc:"maximum number of training trials per epoch"`
@@ -173,6 +176,7 @@ func (ss *Sim) New() {
 	ss.V1onWts = &etensor.Float32{}
 	ss.V1offWts = &etensor.Float32{}
 	ss.V1Wts = &etensor.Float32{}
+	ss.ITWts = &etensor.Float32{}
 	ss.RunLog = &etable.Table{}
 	ss.RunStats = &etable.Table{}
 	ss.Params = ParamSets
@@ -202,11 +206,11 @@ func (ss *Sim) ConfigEnv() {
 		ss.MaxRuns = 1
 	}
 	if ss.MaxEpcs == 0 { // allow user override
-		ss.MaxEpcs = 5 // ss.MaxEpcs = 100
+		ss.MaxEpcs = 100 //5 // ss.MaxEpcs = 100
 		ss.NZeroStop = -1
 	}
 	if ss.MaxTrls == 0 { // allow user override
-		ss.MaxTrls = 10 // ss.MaxTrls = 100
+		ss.MaxTrls = 100 //10 // ss.MaxTrls = 100
 	}
 
 	ss.TrainEnv.Nm = "TrainEnv"
@@ -220,7 +224,7 @@ func (ss *Sim) ConfigEnv() {
 
 	ss.TestEnv.Nm = "TestEnv"
 	ss.TestEnv.Dsc = "testing (probe) params and state"
-	ss.TestEnv.Table = etable.NewIdxView(ss.Probes)
+	ss.TestEnv.Table = etable.NewIdxView(ss.Probes) // note: this is a pointer to the data; ss.Probes is updated by OpenPats; which is defined in ss.OpenPatAsset(ss.Probes, "probes.tsv", "Probes", "Probe inputs for testing")
 	ss.TestEnv.Sequential = true
 	ss.TestEnv.Validate()
 
@@ -233,24 +237,27 @@ func (ss *Sim) ConfigNet(net *leabra.Network) {
 	lgnOn := net.AddLayer2D("LGNon", 12, 12, emer.Input)
 	lgnOff := net.AddLayer2D("LGNoff", 12, 12, emer.Input)
 	v1 := net.AddLayer2D("V1", 14, 14, emer.Hidden)
+	it := net.AddLayer2D("IT", 14, 14, emer.Hidden) // 新增 IT 层
 
 	full := prjn.NewFull()
 	net.ConnectLayers(lgnOn, v1, full, emer.Forward)
 	net.ConnectLayers(lgnOff, v1, full, emer.Forward)
+	net.ConnectLayers(v1, it, full, emer.Forward) // V1 到 IT 的连接
 
-	circ := prjn.NewCircle()
-	circ.TopoWts = true
-	circ.Radius = 4
-	circ.Sigma = .75
+	// circ := prjn.NewCircle()
+	// circ.TopoWts = true
+	// circ.Radius = 4
+	// circ.Sigma = .75
 
-	rec := net.ConnectLayers(v1, v1, circ, emer.Lateral)
-	rec.SetClass("ExciteLateral")
+	// rec := net.ConnectLayers(v1, v1, circ, emer.Lateral)
+	// rec.SetClass("ExciteLateral")
 
-	inh := net.ConnectLayers(v1, v1, full, emer.Inhib)
-	inh.SetClass("InhibLateral")
+	// inh := net.ConnectLayers(v1, v1, full, emer.Inhib)
+	// inh.SetClass("InhibLateral")
 
 	lgnOff.SetRelPos(relpos.Rel{Rel: relpos.RightOf, Other: "LGNon", YAlign: relpos.Front, Space: 2})
 	v1.SetRelPos(relpos.Rel{Rel: relpos.Above, Other: "LGNon", XAlign: relpos.Left, YAlign: relpos.Front, XOffset: 5, Space: 2})
+	it.SetRelPos(relpos.Rel{Rel: relpos.Above, Other: "V1", XAlign: relpos.Left, YAlign: relpos.Front, XOffset: 5, Space: 2}) // 设置 IT 层的位置
 
 	net.Defaults()
 	ss.SetParams("Network", false) // only set Network params
@@ -550,6 +557,8 @@ func (ss *Sim) V1RFs() {
 	v1 := ss.Net.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
 	ysz := v1.Shape().Dim(0)
 	xsz := v1.Shape().Dim(1)
+	// tttt := v1.Shape().Len()
+	// fmt.Println("isz:", isz, "ysz:", ysz, "xsz:", xsz, "tttt:", tttt)
 	for y := 0; y < ysz; y++ {
 		for x := 0; x < xsz; x++ {
 			ui := (y*xsz + x)
@@ -568,6 +577,31 @@ func (ss *Sim) V1RFs() {
 		ss.WtsGrid.UpdateSig()
 	}
 }
+
+// func (ss *Sim) ITRFs() {
+// 	v1Vals := ss.V1Wts.Values
+// 	netVals := ss.ITWts.Values
+// 	v1 := ss.Net.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+// 	isz := v1.Shape().Len()
+// 	it := ss.Net.LayerByName("IT").(leabra.LeabraLayer).AsLeabra()
+// 	ysz := it.Shape().Dim(0)
+// 	xsz := it.Shape().Dim(1)
+// 	for y := 0; y < ysz; y++ {
+// 		for x := 0; x < xsz; x++ {
+// 			ui := (y*xsz + x)
+// 			ust := ui * isz
+// 			v1vls := v1Vals[ust : ust+isz]
+// 			netvls := netVals[ust : ust+isz]
+// 			v1.SendPrjnVals(&v1vls, "Wt", it, ui, "")
+// 			for ui := 0; ui < isz; ui++ {
+// 				netvls[ui] = v1vls[ui]
+// 			}
+// 		}
+// 	}
+// 	if ss.WtsGrid != nil {
+// 		ss.WtsGrid.UpdateSig()
+// 	}
+// }
 
 func (ss *Sim) ConfigWts(dt *etensor.Float32) {
 	dt.SetShape([]int{14, 14, 12, 12}, nil, nil)
@@ -649,13 +683,13 @@ func (ss *Sim) SetParams(sheet string, setMsg bool) error {
 		}
 	}
 
-	nt := ss.Net
-	v1 := nt.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
-	elat := v1.RcvPrjns[2].(*leabra.Prjn)
-	elat.WtScale.Rel = ss.ExcitLateralScale
-	elat.Learn.Learn = ss.ExcitLateralLearn
-	ilat := v1.RcvPrjns[3].(*leabra.Prjn)
-	ilat.WtScale.Abs = ss.InhibLateralScale
+	// nt := ss.Net
+	// v1 := nt.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+	// elat := v1.RcvPrjns[2].(*leabra.Prjn)
+	// elat.WtScale.Rel = ss.ExcitLateralScale
+	// elat.Learn.Learn = ss.ExcitLateralLearn
+	// ilat := v1.RcvPrjns[3].(*leabra.Prjn)
+	// ilat.WtScale.Abs = ss.InhibLateralScale
 
 	return err
 }
@@ -716,16 +750,20 @@ func (ss *Sim) OpenPats() {
 ////////////////////////////////////////////////////////////////////////////////////////////
 // 		Logging
 
-// ValsTsr gets value tensor of given name, creating if not yet made
+// ValsTsr 获取给定名称的值张量，如果尚未创建则进行创建// ValsTsr gets value tensor of given name, creating if not yet made
 func (ss *Sim) ValsTsr(name string) *etensor.Float32 {
+	// 检查是否已经初始化了值张量的映射
 	if ss.ValsTsrs == nil {
 		ss.ValsTsrs = make(map[string]*etensor.Float32)
 	}
+	// 尝试获取给定名称的值张量
 	tsr, ok := ss.ValsTsrs[name]
+	// 如果不存在，则创建一个新的 Float32 张量，并添加到映射中
 	if !ok {
 		tsr = &etensor.Float32{}
 		ss.ValsTsrs[name] = tsr
 	}
+	// 返回获取或新创建的值张量
 	return tsr
 }
 
@@ -742,6 +780,7 @@ func (ss *Sim) LogTrnEpc(dt *etable.Table) {
 	// nt := float64(ss.TrainEnv.Trial.Max)
 
 	ss.V1RFs()
+	// ss.ITRFs()
 
 	dt.SetCellFloat("Run", row, float64(ss.TrainEnv.Run.Cur))
 	dt.SetCellFloat("Epoch", row, float64(epc))
@@ -778,6 +817,7 @@ func (ss *Sim) ConfigTrnEpcLog(dt *etable.Table) {
 	ss.ConfigWts(ss.V1onWts)
 	ss.ConfigWts(ss.V1offWts)
 	ss.ConfigWts(ss.V1Wts)
+	ss.ConfigWts(ss.ITWts)
 }
 
 func (ss *Sim) ConfigTrnEpcPlot(plt *eplot.Plot2D, dt *etable.Table) *eplot.Plot2D {
@@ -806,6 +846,7 @@ func (ss *Sim) LogTstTrl(dt *etable.Table) {
 	LGNonLayer := ss.Net.LayerByName("LGNon").(leabra.LeabraLayer).AsLeabra()
 	LGNoffLayer := ss.Net.LayerByName("LGNoff").(leabra.LeabraLayer).AsLeabra()
 	V1Layer := ss.Net.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+	ITLayer := ss.Net.LayerByName("IT").(leabra.LeabraLayer).AsLeabra()
 	// // 获取输入层的激活值
 	// LGNonAct := LGNonLayer.Pools[0].ActM.Avg
 	// LGNoffAct := LGNoffLayer.Pools[0].ActM.Avg
@@ -855,6 +896,10 @@ func (ss *Sim) LogTstTrl(dt *etable.Table) {
 	V1Layer.UnitValsTensor(hvt, "AvgSLrn")
 	dt.SetCellTensor("V1ActM", row, hvt)
 
+	// 获取神经网络的激活值 并且保存在dt中
+	ITLayer.UnitValsTensor(hvt, "AvgSLrn")
+	dt.SetCellTensor("ITActM", row, hvt)
+
 	// 遍历神经网络的层名称
 	for _, lnm := range ss.LayStatNms {
 		// 获取神经网络中具有给定名称的层
@@ -865,9 +910,15 @@ func (ss *Sim) LogTstTrl(dt *etable.Table) {
 
 	// 注意：在从另一个 goroutine 调用时，使用 Go 版本的更新是至关重要的 // note: essential to use Go version of update when called from another goroutine
 	ss.TstTrlPlot.GoUpdate()
+
 }
 
 func (ss *Sim) ConfigTstTrlLog(dt *etable.Table) {
+	// set layer names
+	LGNonLayer := ss.Net.LayerByName("LGNon").(leabra.LeabraLayer).AsLeabra()
+	LGNoffLayer := ss.Net.LayerByName("LGNoff").(leabra.LeabraLayer).AsLeabra()
+	V1Layer := ss.Net.LayerByName("V1").(leabra.LeabraLayer).AsLeabra()
+
 	dt.SetMetaData("name", "TstTrlLog")
 	dt.SetMetaData("desc", "Record of testing per input pattern")
 	dt.SetMetaData("read-only", "true")
@@ -883,6 +934,13 @@ func (ss *Sim) ConfigTstTrlLog(dt *etable.Table) {
 	for _, lnm := range ss.LayStatNms {
 		sch = append(sch, etable.Column{lnm + " ActM.Avg", etensor.FLOAT64, nil, nil})
 	}
+	sch = append(sch, etable.Schema{
+		{"LGNonAct", etensor.FLOAT64, LGNonLayer.Shp.Shp, nil},
+		{"LGNoffAct", etensor.FLOAT64, LGNoffLayer.Shp.Shp, nil},
+		{"V1ActM", etensor.FLOAT64, V1Layer.Shp.Shp, nil},
+		{"ITActM", etensor.FLOAT64, V1Layer.Shp.Shp, nil},
+	}...)
+
 	dt.SetFromSchema(sch, nt)
 }
 
@@ -1067,6 +1125,11 @@ func (ss *Sim) ConfigGui() *gi.Window {
 	ss.WtsGrid = tg
 	tg.SetTensor(ss.V1Wts)
 
+	tg = tv.AddNewTab(etview.KiT_TensorGrid, "IT RFs").(*etview.TensorGrid)
+	tg.SetStretchMax()
+	ss.WtsGrid = tg
+	tg.SetTensor(ss.ITWts)
+
 	plt = tv.AddNewTab(eplot.KiT_Plot2D, "TstTrlPlot").(*eplot.Plot2D)
 	ss.TstTrlPlot = ss.ConfigTstTrlPlot(plt, ss.TstTrlLog)
 
@@ -1153,6 +1216,12 @@ func (ss *Sim) ConfigGui() *gi.Window {
 	}}, win.This(), func(recv, send ki.Ki, sig int64, data interface{}) {
 		ss.V1RFs()
 	})
+
+	// tbar.AddAction(gi.ActOpts{Label: "IT RFs", Icon: "file-image", Tooltip: "Update the IT Receptive Field (Weights) plot in IT RFs tab.", UpdateFunc: func(act *gi.Action) {
+	// 	act.SetActiveStateUpdt(!ss.IsRunning)
+	// }}, win.This(), func(recv, send ki.Ki, sig int64, data interface{}) {
+	// 	ss.ITRFs()
+	// })
 
 	tbar.AddSeparator("test")
 

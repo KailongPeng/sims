@@ -18,21 +18,23 @@ import (
 // and vertical elements.  All possible such combinations of 3 out of 6 line segments are created.
 // Renders using SVG.
 type LEDEnv struct {
-	Nm        string          `desc:"name of this environment"`
-	Dsc       string          `desc:"description of this environment"`
-	Draw      LEDraw          `desc:"draws LEDs onto image"`
-	Vis       Vis             `desc:"visual processing params"`
-	MinLED    int             `min:"0" max:"19" desc:"minimum LED number to draw (0-19)"`
-	MaxLED    int             `min:"0" max:"19" desc:"maximum LED number to draw (0-19)"`
-	CurLED    int             `inactive:"+" desc:"current LED number that was drawn"`
-	PrvLED    int             `inactive:"+" desc:"previous LED number that was drawn"`
-	XFormRand vxform.Rand     `desc:"random transform parameters"`
-	XForm     vxform.XForm    `desc:"current -- prev transforms"`
-	Run       env.Ctr         `view:"inline" desc:"current run of model as provided during Init"`
-	Epoch     env.Ctr         `view:"inline" desc:"number of times through Seq.Max number of sequences"`
-	Trial     env.Ctr         `view:"inline" desc:"trial is the step counter within epoch"`
-	OrigImg   etensor.Float32 `desc:"original image prior to random transforms"`
-	Output    etensor.Float32 `desc:"CurLED one-hot output tensor"`
+	Nm           string          `desc:"name of this environment"`
+	Dsc          string          `desc:"description of this environment"`
+	Draw         LEDraw          `desc:"draws LEDs onto image"`
+	Vis          Vis             `desc:"visual processing params"`
+	MinLED       int             `min:"0" max:"19" desc:"minimum LED number to draw (0-19)"`
+	MaxLED       int             `min:"0" max:"19" desc:"maximum LED number to draw (0-19)"`
+	CurLED       int             `inactive:"+" desc:"current LED number that was drawn"`
+	PrvLED       int             `inactive:"+" desc:"previous LED number that was drawn"`
+	XFormRand    vxform.Rand     `desc:"random transform parameters"`
+	XForm        vxform.XForm    `desc:"current -- prev transforms"`
+	Run          env.Ctr         `view:"inline" desc:"current run of model as provided during Init"`
+	Epoch        env.Ctr         `view:"inline" desc:"number of times through Seq.Max number of sequences"`
+	Trial        env.Ctr         `view:"inline" desc:"trial is the step counter within epoch"`
+	OrigImg      etensor.Float32 `desc:"original image prior to random transforms"`
+	Output       etensor.Float32 `desc:"CurLED one-hot output tensor"`
+	IsTesting    bool            `desc:"是否处于测试状态"`
+	TestTrialIdx int             `desc:"测试状态下的当前试验索引"`
 }
 
 func (ev *LEDEnv) Name() string { return ev.Nm }
@@ -146,10 +148,40 @@ func (ev *LEDEnv) SetOutput(out int) {
 }
 
 // DrawRndLED picks a new random LED and draws it
+//
+//	func (ev *LEDEnv) DrawRndLED() {
+//		rng := 1 + ev.MaxLED - ev.MinLED
+//		led := ev.MinLED + rand.Intn(rng)
+//		ev.DrawLED(led)
+//	}
 func (ev *LEDEnv) DrawRndLED() {
-	rng := 1 + ev.MaxLED - ev.MinLED
-	led := ev.MinLED + rand.Intn(rng)
+	var led int
+	if ev.IsTesting {
+		// 在测试状态下，根据测试试验索引选择LED
+		led = ev.TestTrialIdx
+		ev.TestTrialIdx++ // 准备下一个测试试验
+		if ev.TestTrialIdx > ev.MaxLED {
+			ev.TestTrialIdx = ev.MinLED // 循环回到开始
+		}
+		// 固定图像变换参数
+		ev.XFormRand.TransX.Min = 0 // 示例固定值
+		ev.XFormRand.TransX.Max = 0
+		ev.XFormRand.TransY.Min = 0
+		ev.XFormRand.TransY.Max = 0
+		ev.XFormRand.Scale.Min = 1
+		ev.XFormRand.Scale.Max = 1
+		ev.XFormRand.Rot.Min = 0
+		ev.XFormRand.Rot.Max = 0
+	} else {
+		// 非测试状态，随机选择一个LED
+		rng := 1 + ev.MaxLED - ev.MinLED
+		led = ev.MinLED + rand.Intn(rng)
+	}
 	ev.DrawLED(led)
+}
+func (ev *LEDEnv) StartTesting(testTrialID int) {
+	ev.IsTesting = true
+	ev.TestTrialIdx = ev.MinLED // 或者任何特定起始值
 }
 
 // DrawLED draw specified LED

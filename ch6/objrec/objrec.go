@@ -42,7 +42,41 @@ import (
 	"github.com/goki/ki/ki"
 	"github.com/goki/ki/kit"
 	"github.com/goki/mat32"
+
+	"encoding/json"
+	"io/fs"
+	"path/filepath"
+	"regexp"
 )
+
+// SaveLayerActivityToJson 保存给定层的活动数据到一个JSON文件中。
+// 参数包括文件名、层名、试验索引和活动数据。
+func SaveLayerActivityToJson(filename, layerName string, trialIdx int, activity *etensor.Float32, obj float64, trialName string) error {
+	// 准备数据结构以便序列化。
+	data := map[string]interface{}{
+		"layer_name": layerName,
+		"trial_idx":  trialIdx,
+		"activity":   activity.Values,
+		"obj":        obj,
+		"trial_name": trialName,
+	}
+
+	// 打开文件以写入。
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("creating file: %v", err)
+	}
+	defer file.Close()
+
+	// 创建JSON编码器并编码数据。
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(data)
+	if err != nil {
+		return fmt.Errorf("encoding JSON: %v", err)
+	}
+
+	return nil
+}
 
 func main() {
 	TheSim.New()
@@ -313,6 +347,8 @@ type Sim struct {
 
 	// [view: -] timer for last epoch
 	LastEpcTime time.Time `view:"-" desc:"timer for last epoch"`
+
+	TestSavingTimepoint int `desc:"tracks the number of times data is saved during testing"`
 }
 
 // this registers this Sim Type and gives it properties that e.g.,
@@ -360,6 +396,7 @@ func (ss *Sim) Config() {
 	ss.ConfigTstEpcLog(ss.TstEpcLog)
 	ss.ConfigTstTrlLog(ss.TstTrlLog)
 	ss.ConfigRunLog(ss.RunLog)
+	ss.TestSavingTimepoint = 0
 }
 
 func (ss *Sim) ConfigEnv() {
@@ -400,8 +437,8 @@ func (ss *Sim) ConfigEnv() {
 	ss.TestEnv.Dsc = "testing params and state"
 	ss.TestEnv.Defaults()
 	ss.TestEnv.MinLED = 0
-	ss.TestEnv.MaxLED = 19     // all by default
-	ss.TestEnv.Trial.Max = 500 // 1000 is too long!
+	ss.TestEnv.MaxLED = 19    // all by default
+	ss.TestEnv.Trial.Max = 20 // 1000 is too long!
 	ss.TestEnv.Validate()
 
 	ss.TrainEnv.Init(0)
@@ -461,6 +498,7 @@ func (ss *Sim) Init() {
 	if ss.NetView != nil && ss.NetView.IsVisible() {
 		ss.NetView.RecordSyns()
 	}
+	ss.TestSavingTimepoint = 0 // 初始化为0
 }
 
 // NewRndSeed gets a new random seed based on current time -- otherwise uses
@@ -818,6 +856,9 @@ func (ss *Sim) TestItem(idx int) {
 func (ss *Sim) TestAll() {
 	ss.TestEnv.Init(ss.TrainEnv.Run.Cur)
 	ss.ActRFs.Reset()
+
+	// ss.TestSavingTimepoint = 0 // 初始化为0
+
 	for {
 		ss.TestTrial(true) // return on chg, don't present
 		_, _, chg := ss.TestEnv.Counter(env.Epoch)
@@ -825,6 +866,7 @@ func (ss *Sim) TestAll() {
 			break
 		}
 	}
+	ss.TestSavingTimepoint++ // 每次测试后更新
 	ss.ActRFs.Avg()
 	ss.ActRFs.Norm()
 	ss.ViewActRFs()
@@ -1129,6 +1171,86 @@ func (ss *Sim) LogTstTrl(dt *etable.Table) {
 	}
 	// note: essential to use Go version of update when called from another goroutine
 	ss.TstTrlPlot.GoUpdate()
+
+	// 假设这是在LogTstTrl函数中的一部分
+	layerNames := []string{"V1", "V4", "IT", "Output"}
+	// for _, lnm := range layerNames {
+	// 	ly := ss.Net.LayerByName(lnm).(leabra.LeabraLayer).AsLeabra()
+	// 	act := &etensor.Float32{}
+	// 	ly.UnitValsTensor(act, "Act")
+
+	// 	// 构建一个唯一的文件名，可能包括试验编号和层名称。
+	// 	filename := fmt.Sprintf("data/activity_%s_trial_%d.json", lnm, ss.TestEnv.Trial.Cur)
+
+	// 	// 调用函数保存活动数据到JSON文件。
+	// 	err := SaveLayerActivityToJson(filename, lnm, ss.TestEnv.Trial.Cur, act, float64(ss.TestEnv.CurLED), ss.TestEnv.String())
+	// 	if err != nil {
+	// 		fmt.Println("Error saving activity data:", err)
+	// 	}
+	// }
+	for _, lnm := range layerNames {
+		ly := ss.Net.LayerByName(lnm).(leabra.LeabraLayer).AsLeabra()
+		act := &etensor.Float32{}
+		ly.UnitValsTensor(act, "Act")
+
+		// 使用 GetNextFilename 函数获取下一个文件名
+
+		filename, err := GetNextFilename(fmt.Sprintf("./data/timepoint_%d", ss.TestSavingTimepoint), fmt.Sprintf("activity_%s_trial", lnm))
+		if err != nil {
+			log.Printf("Error determining next filename for layer %s: %v\n", lnm, err)
+			continue
+		}
+
+		// 调用函数保存活动数据到 JSON 文件
+		err = SaveLayerActivityToJson(filename, lnm, ss.TestEnv.Trial.Cur, act, float64(ss.TestEnv.CurLED), ss.TestEnv.String())
+		if err != nil {
+			fmt.Println("Error saving activity data:", err)
+		}
+	}
+
+}
+
+// GetNextFilename 返回给定前缀和目录下一个可用的文件名，使用序号来确保唯一性。
+func GetNextFilename(dir, prefix string) (string, error) {
+	// Check if the directory exists, create it if not
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, os.ModePerm) // os.ModePerm is 0777, allowing read, write, and execute
+		if err != nil {
+			return "", fmt.Errorf("failed to create directory %s: %v", dir, err)
+		}
+	}
+
+	maxNum := 0
+	pattern := prefix + `_(\d+)\.json$`
+	re := regexp.MustCompile(pattern)
+
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			match := re.FindStringSubmatch(d.Name())
+			if match != nil {
+				num, err := strconv.Atoi(match[1])
+				if err != nil {
+					return nil // 如果不能转换为数字，就跳过
+				}
+				if num > maxNum {
+					maxNum = num
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	// 构造新文件名
+	nextNum := maxNum + 1
+	filename := fmt.Sprintf("%s_%d.json", prefix, nextNum)
+	return filepath.Join(dir, filename), nil
 }
 
 func (ss *Sim) ConfigTstTrlLog(dt *etable.Table) {
@@ -1490,6 +1612,8 @@ func (ss *Sim) ConfigGui() *gi.Window {
 		if !ss.IsRunning {
 			ss.IsRunning = true
 			tbar.UpdateActions()
+			currentTestTrialID := ss.TestEnv.Trial.Cur
+			ss.TestEnv.StartTesting(currentTestTrialID)
 			go ss.RunTestAll()
 		}
 	})

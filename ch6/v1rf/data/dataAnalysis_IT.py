@@ -109,7 +109,9 @@ import numpy as np
 from sklearn.model_selection import KFold
 
 # Load the dataset
-path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round2_5timepoints"
+path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round2_6timepoints"
+# path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round3_4timepoints.csv"
+# path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round2_5timepoints"
 # path_name = r"D:\Desktop\simulation\sims\ch6\v1rf\IT_data\round1_3timepoints"
 
 df = pd.read_csv(path_name, sep='\t')
