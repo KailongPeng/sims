@@ -13,11 +13,13 @@ import numpy as np
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
 
 # 定义点的数量
-n = 20
+n = 40
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 50  # 优化迭代次数
+iterations = 100  # 优化迭代次数
+# 定义学习率
+init_learning_rate = 1e-2
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -189,7 +191,6 @@ std_differentiation_list = [initial_std_differentiation]
 mean_integration_list = [initial_mean_integration]
 std_integration_list = [initial_std_integration]
 
-init_learning_rate = 1e-3
 
 # 定义学习率调度器
 def cosine_annealing(epoch, total_epochs, initial_lr):
@@ -241,29 +242,35 @@ plt.figure(figsize=(12, 12))
 
 plt.subplot(2, 2, 1)
 plt.scatter(points[:, 0], points[:, 1], c='blue', label='初始')
+# annotate each dot
+for i in range(n):
+    plt.annotate(f'{i}', (points[i, 0], points[i, 1]), fontsize=12, color='blue')
 # plt.title("初始位置")
 # plt.xlabel("X")
 # plt.ylabel("Y")
 # plt.legend()
 
-plt.subplot(2, 2, 1)
+# plt.subplot(2, 2, 1)
 plt.scatter(best_points[:, 0], best_points[:, 1], c='red', label='最终')
+# annotate each dot
+for i in range(n):
+    plt.annotate(f'{i}', (best_points[i, 0], best_points[i, 1]), fontsize=12, color='red')
 plt.title("初始位置-最终位置")
 plt.xlabel("X")
 plt.ylabel("Y")
 plt.legend()
 
-# 设置相同的xlim和ylim
-xlim = (min(points[:, 0].min(), best_points[:, 0].min())-0.1, max(points[:, 0].max(), best_points[:, 0].max())+0.1)
-ylim = (min(points[:, 1].min(), best_points[:, 1].min())-0.1, max(points[:, 1].max(), best_points[:, 1].max())+0.1)
-
-plt.subplot(2, 2, 1)
-plt.xlim(xlim)
-plt.ylim(ylim)
-
-plt.subplot(2, 2, 2)
-plt.xlim(xlim)
-plt.ylim(ylim)
+# # 设置相同的xlim和ylim
+# xlim = (min(points[:, 0].min(), best_points[:, 0].min())-0.1, max(points[:, 0].max(), best_points[:, 0].max())+0.1)
+# ylim = (min(points[:, 1].min(), best_points[:, 1].min())-0.1, max(points[:, 1].max(), best_points[:, 1].max())+0.1)
+#
+# plt.subplot(2, 2, 1)
+# plt.xlim(xlim)
+# plt.ylim(ylim)
+#
+# plt.subplot(2, 2, 2)
+# plt.xlim(xlim)
+# plt.ylim(ylim)
 
 # 绘制初始和最终的目标函数散点图
 plt.subplot(2, 2, 3)
@@ -357,6 +364,131 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.tight_layout()
 plt.show()
 
+def cubic_analysis(xAxisData, learning_effect_reshaped):
+    from sklearn.model_selection import KFold
+
+    def cal_resample(data=None, times=5000, return_all=False):
+        # 这个函数的目的是为了针对输入的数据，进行有重复的抽取5000次，然后记录每一次的均值，最后输出这5000次重采样的均值分布    的   均值和5%和95%的数值。
+        if data is None:
+            raise Exception
+        if type(data) == list:
+            data = np.asarray(data)
+        iter_mean = []
+        for _ in range(times):
+            iter_distri = data[np.random.choice(len(data), len(data), replace=True)]
+            iter_mean.append(np.nanmean(iter_distri))
+        _mean = np.mean(iter_mean)
+        _5 = np.percentile(iter_mean, 5)
+        _95 = np.percentile(iter_mean, 95)
+        if return_all:
+            return _mean, _5, _95, iter_mean
+        else:
+            return _mean, _5, _95
+
+    # Define a cubic curve function
+    def cubic_curve(x, a, b, c, d):
+        return a * x ** 3 + b * x ** 2 + c * x + d
+
+    # Fit the cubic curve to the data
+    from scipy.optimize import curve_fit
+
+    params, _ = curve_fit(cubic_curve, xAxisData, learning_effect_reshaped)
+
+    # Generate y-values for the fitted curve over a range of x-values
+    x_fit = np.linspace(xAxisData.min(), xAxisData.max(), 100)
+    y_fit = cubic_curve(x_fit, *params)
+    plt.plot(x_fit, y_fit, color='crimson', linewidth=3, label='Cubic Fit')  # 增加线宽，改变颜色
+    plt.scatter(xAxisData, learning_effect_reshaped, color='grey', label='Data Points')  # 增加颜色
+
+    plt.show()
+
+    # 5折交叉验证函数
+    def cross_validate_cubic_fit(x_data, y_data):
+        kf = KFold(n_splits=5, shuffle=True, random_state=42)
+        correlation_scores = []
+
+        for train_index, test_index in kf.split(x_data):
+            x_train, x_test = x_data[train_index], x_data[test_index]
+            y_train, y_test = y_data[train_index], y_data[test_index]
+
+            # 拟合模型
+            params, _ = curve_fit(cubic_curve, x_train, y_train)
+
+            # 在测试集上评估模型
+            y_pred = cubic_curve(x_test, *params)
+            corr = np.corrcoef(y_pred, y_test)[0, 1]
+            correlation_scores.append(corr)
+        _mean, _5, _95 = cal_resample(correlation_scores)
+
+        return _mean, _5, _95
+
+
+    # 执行5折交叉验证
+    _mean, _5, _95 = cross_validate_cubic_fit(xAxisData, learning_effect_reshaped)
+    yerr = np.array([[_mean - _5], [_95 - _mean]]).reshape(2, 1)
+
+    # 画出带有误差线的条状图
+    plt.figure(figsize=(10, 6))
+    plt.bar(x='Mean', height=_mean, yerr=yerr, capsize=10, color='grey',
+            edgecolor='black', linewidth=1.5)
+    # plt.xlabel('Error Bar')
+    # remove x ticks
+    plt.xticks([])
+    plt.ylabel('Correlation between Predicted and Observed Values')
+    plt.title('5-Fold Cross-Validation of Cubic Fit')
+    plt.margins(y=0.1)
+    plt.show()
+
+    # 画出binning analysis的图
+    def binning_analysis_with_resample(x, y):
+        x_min, x_max = np.min(x), np.max(x)
+        range_x = x_max - x_min
+        bin_width = range_x / 10
+        total_bins = int(np.ceil(range_x / (bin_width / 9)))  # 计算总的bins数量
+
+        # 初始化列表来存储每个bin的中值、y的均值、5%和95%置信区间
+        bin_middles = []
+        y_means = []
+        conf_lower = []
+        conf_upper = []
+
+        # 计算bins的统计数据
+        for i in range(total_bins):
+            bin_start = x_min + (bin_width / 9) * i
+            bin_end = bin_start + bin_width
+            mask = (x >= bin_start) & (x < bin_end)
+            x_current = x[mask]
+            y_current = y[mask]
+
+            if len(y_current) > 0:
+                bin_middle = (bin_start + bin_end) / 2
+                mean, lower, upper = cal_resample(y_current, times=500, return_all=False)  # 使用500次而不是5000次以提高性能
+
+                bin_middles.append(bin_middle)
+                y_means.append(mean)
+                conf_lower.append(lower)
+                conf_upper.append(upper)
+
+        # 绘制线图
+        plt.figure(figsize=(10, 6))  # 设置图表大小
+        plt.plot(bin_middles, y_means, 'r', label='Mean')  # 红色线表示均值
+        plt.plot(bin_middles, conf_lower, 'gray', linestyle='--', label='5% percentile')  # 灰色线表示5%置信区间
+        plt.plot(bin_middles, conf_upper, 'gray', linestyle='--', label='95% percentile')  # 灰色线表示95%置信区间
+        plt.fill_between(bin_middles, conf_lower, conf_upper, color='gray', alpha=0.2)  # 填充5%和95%置信区间之间的区域
+        # 在y=0处添加绿色虚线
+        plt.axhline(y=0, color='green', linestyle='--', alpha=0.5)  # 绿色虚线，一定的透明度
+
+        plt.xlabel('X bin middle')
+        plt.ylabel('Y resampled statistics')
+        plt.title('Binning Analysis with Resampled Confidence Intervals')
+        plt.legend()
+        plt.show()
+
+    binning_analysis_with_resample(xAxisData, learning_effect_reshaped)
+
+
+cubic_analysis(best_x, best_y)
+
 
 def display_cosine_annealing():
     import numpy as np
@@ -384,4 +516,5 @@ def display_cosine_annealing():
     # plt.yscale('log')  # 使用对数刻度以便更好地观察小数值的变化
     plt.grid(True)
     plt.show()
+
 
