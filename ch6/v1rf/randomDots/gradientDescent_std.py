@@ -181,7 +181,11 @@ std_differentiation_list = [initial_std_differentiation]
 mean_integration_list = [initial_mean_integration]
 std_integration_list = [initial_std_integration]
 
-learning_rate = 1e-4 #0.000001
+init_learning_rate = 1e-3
+
+# 定义学习率调度器
+def cosine_annealing(epoch, total_epochs, initial_lr):
+    return initial_lr * 0.5 * (1 + np.cos(np.pi * epoch / total_epochs))
 
 # 进行迭代优化
 for _ in tqdm(range(iterations)):
@@ -189,6 +193,7 @@ for _ in tqdm(range(iterations)):
     gradient = calculate_gradient(best_points, initial_dist_matrix)  # 计算梯度
 
     # 更新 Adam 优化器参数
+    learning_rate = cosine_annealing(t, iterations, init_learning_rate)
     m = beta1 * m + (1 - beta1) * gradient
     v = beta2 * v + (1 - beta2) * (gradient ** 2)
     m_hat = m / (1 - beta1 ** t)
