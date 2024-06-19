@@ -119,7 +119,7 @@ def calculate_gradient(points, initial_dist_matrix):
             #     'std_integration': 1
             # }
             weights = {
-                'mean_noChange': 0,
+                'mean_noChange': 1,
                 'std_noChange': 0,
                 'mean_differentiation': 1,
                 'std_differentiation': 0,
@@ -143,6 +143,14 @@ def move_points_randomly(points, lambda_factor):
     # 随机移动点，移动后的点位置是原始位置加上一个随机值乘以lambda_factor
     new_points = points + (np.random.rand(n, 2) - 0.5) * lambda_factor
     return new_points
+
+# 初始化 Adam 优化器参数
+beta1 = 0.9
+beta2 = 0.999
+epsilon = 1e-8
+m = np.zeros_like(points)  # 一阶矩估计
+v = np.zeros_like(points)  # 二阶矩估计
+t = 0
 
 # 计算初始目标函数值和散点图数据
 new_points = move_points_randomly(points, lambda_factor)  # 随机移动点
@@ -173,14 +181,23 @@ std_differentiation_list = [initial_std_differentiation]
 mean_integration_list = [initial_mean_integration]
 std_integration_list = [initial_std_integration]
 
+learning_rate = 1e-4 #0.000001
+
 # 进行迭代优化
 for _ in tqdm(range(iterations)):
+    t += 1
     gradient = calculate_gradient(best_points, initial_dist_matrix)  # 计算梯度
-    # new_points = best_points - lambda_factor * gradient  # 沿负梯度方向更新点的位置
-    learningRate = 1e-4 #0.000001
-    # new_points = best_points - gradient / np.max(np.abs(gradient)) * learningRate  # 沿负梯度方向更新点的位置
-    new_points = best_points - gradient * learningRate  # 沿负梯度方向更新点的位置
+
+    # 更新 Adam 优化器参数
+    m = beta1 * m + (1 - beta1) * gradient
+    v = beta2 * v + (1 - beta2) * (gradient ** 2)
+    m_hat = m / (1 - beta1 ** t)
+    v_hat = v / (1 - beta2 ** t)
+
+    new_points = best_points - learning_rate * m_hat / (np.sqrt(v_hat) + epsilon)  # 使用 Adam 更新规则更新点的位置
     new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
+    # new_points = best_points - gradient * learningRate  # 沿负梯度方向更新点的位置
+    # new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
     (new_objective, new_x, new_y,
      mean_noChange, std_noChange,
      mean_differentiation, std_differentiation,
@@ -211,14 +228,14 @@ plt.figure(figsize=(12, 12))
 
 plt.subplot(2, 2, 1)
 plt.scatter(points[:, 0], points[:, 1], c='blue', label='初始')
-plt.title("初始位置")
-plt.xlabel("X")
-plt.ylabel("Y")
-plt.legend()
+# plt.title("初始位置")
+# plt.xlabel("X")
+# plt.ylabel("Y")
+# plt.legend()
 
-plt.subplot(2, 2, 2)
+plt.subplot(2, 2, 1)
 plt.scatter(best_points[:, 0], best_points[:, 1], c='red', label='最终')
-plt.title("最终位置")
+plt.title("初始位置-最终位置")
 plt.xlabel("X")
 plt.ylabel("Y")
 plt.legend()
@@ -239,8 +256,8 @@ plt.ylim(ylim)
 plt.subplot(2, 2, 3)
 plt.scatter(initial_x, initial_y, c='blue', label='初始')
 plt.title("初始目标函数散点图")
-plt.xlabel("-m1")
-plt.ylabel("m2 - m1")
+plt.xlabel("co-activation: -m1")
+plt.ylabel("integration: -(m2 - m1)")
 plt.legend()
 # 画一条 y=0 的参考线
 plt.axhline(y=0, color='gray', linestyle='--')
@@ -248,8 +265,8 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.subplot(2, 2, 4)
 plt.scatter(best_x, best_y, c='red', label='最终')
 plt.title("最终目标函数散点图")
-plt.xlabel("-m1")
-plt.ylabel("m2 - m1")
+plt.xlabel("co-activation: -m1")
+plt.ylabel("integration: -(m2 - m1)")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
@@ -272,6 +289,7 @@ plt.figure(figsize=(15, 10))
 
 plt.subplot(3, 2, 1)
 plt.plot(mean_noChange_list, label='mean_noChange')
+plt.scatter(range(len(mean_noChange_list)), mean_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_noChange的变化趋势
 plt.title("mean_noChange 曲线, 应该接近0")  # mean_noChange更接近0，mean_integration更大
 plt.xlabel("迭代次数")
 plt.ylabel("mean_noChange")
@@ -280,6 +298,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 2)
 plt.plot(std_noChange_list, label='std_noChange')
+plt.scatter(range(len(std_noChange_list)), std_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚std_noChange的变化趋势
 plt.title("std_noChange 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("std_noChange")
@@ -288,6 +307,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 3)
 plt.plot(mean_differentiation_list, label='mean_differentiation')
+plt.scatter(range(len(mean_differentiation_list)), mean_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_differentiation的变化趋势
 plt.title("mean_differentiation 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("mean_differentiation")
@@ -296,6 +316,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 4)
 plt.plot(std_differentiation_list, label='std_differentiation')
+plt.scatter(range(len(std_differentiation_list)), std_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚std_differentiation的变化趋势
 plt.title("std_differentiation 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("std_differentiation")
@@ -304,6 +325,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 5)
 plt.plot(mean_integration_list, label='mean_integration')
+plt.scatter(range(len(mean_integration_list)), mean_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_integration的变化趋势
 plt.title("mean_integration 曲线， 应该更大")  # mean_noChange更接近0，mean_integration更大
 plt.xlabel("迭代次数")
 plt.ylabel("mean_integration")
@@ -312,6 +334,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 6)
 plt.plot(std_integration_list, label='std_integration')
+plt.scatter(range(len(std_integration_list)), std_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚std_integration的变化趋势
 plt.title("std_integration 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("std_integration")
