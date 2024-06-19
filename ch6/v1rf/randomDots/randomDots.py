@@ -121,6 +121,12 @@ new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩
 # 优化点的位置
 best_points = points.copy()  # 复制初始点集作为最佳点集的初始值
 best_objective = initial_objective  # 初始化最佳目标函数值为初始值
+best_t_noChange = initial_t_noChange
+best_p_noChange = initial_p_noChange
+best_t_differentiation = initial_t_differentiation
+best_p_differentiation = initial_p_differentiation
+best_t_integration = initial_t_integration
+best_p_integration = initial_p_integration
 best_x = initial_x
 best_y = initial_y
 
@@ -149,11 +155,30 @@ for _ in tqdm(range(iterations)):
          t_integration, p_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
 
         # 如果新的目标函数值小于最佳目标函数值，则更新最佳点集和最佳目标函数值
-        if new_objective < best_objective:
+        # criteria = new_objective < best_objective
+        # criteria = (np.abs(t_noChange) <= np.abs(best_t_noChange) and
+        #             p_noChange <= best_p_noChange and
+        #             t_differentiation <= best_t_differentiation and
+        #             p_differentiation <= best_p_differentiation and
+        #             t_integration >= best_t_integration and
+        #             p_integration <= best_p_integration)
+        # criteria = (np.abs(t_noChange) <= np.abs(best_t_noChange) and
+        #             t_differentiation <= best_t_differentiation and
+        #             t_integration >= best_t_integration)
+        # criteria = t_differentiation <= best_t_differentiation
+        criteria = t_integration >= best_t_integration
+        if criteria:
             best_points = new_points.copy()
             best_objective = new_objective
+            best_t_noChange = t_noChange
+            best_p_noChange = p_noChange
+            best_t_differentiation = t_differentiation
+            best_p_differentiation = p_differentiation
+            best_t_integration = t_integration
+            best_p_integration = p_integration
             best_x = new_x
             best_y = new_y
+
             objectives.append(new_objective)
             t_noChange_list.append(t_noChange)
             p_noChange_list.append(p_noChange)
@@ -181,8 +206,8 @@ plt.ylabel("Y")
 plt.legend()
 
 # 设置相同的xlim和ylim
-xlim = (min(points[:, 0].min(), best_points[:, 0].min()), max(points[:, 0].max(), best_points[:, 0].max()))
-ylim = (min(points[:, 1].min(), best_points[:, 1].min()), max(points[:, 1].max(), best_points[:, 1].max()))
+xlim = (min(points[:, 0].min(), best_points[:, 0].min())-0.1, max(points[:, 0].max(), best_points[:, 0].max())+0.1)
+ylim = (min(points[:, 1].min(), best_points[:, 1].min())-0.1, max(points[:, 1].max(), best_points[:, 1].max())+0.1)
 
 plt.subplot(2, 2, 1)
 plt.xlim(xlim)
