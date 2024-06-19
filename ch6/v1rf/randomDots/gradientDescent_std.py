@@ -66,7 +66,8 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
 
     # 计算总体目标函数值
     objective = obj_noChange + obj_differentiation + obj_integration
-    return objective, x_coactivation, y_integration, mean_noChange, std_noChange, mean_differentiation, std_differentiation, mean_integration, std_integration
+    return (objective, x_coactivation, y_integration,
+            mean_noChange, std_noChange, mean_differentiation, std_differentiation, mean_integration, std_integration)
 
 
 def calculate_gradient(points, initial_dist_matrix):
@@ -122,7 +123,7 @@ def calculate_gradient(points, initial_dist_matrix):
                 'std_noChange': 0,
                 'mean_differentiation': 1,
                 'std_differentiation': 0,
-                'mean_integration': 0,
+                'mean_integration': 1,
                 'std_integration': 0
             }
 
@@ -176,7 +177,7 @@ std_integration_list = [initial_std_integration]
 for _ in tqdm(range(iterations)):
     gradient = calculate_gradient(best_points, initial_dist_matrix)  # 计算梯度
     # new_points = best_points - lambda_factor * gradient  # 沿负梯度方向更新点的位置
-    learningRate = 1e-8 #0.000001
+    learningRate = 1e-4 #0.000001
     # new_points = best_points - gradient / np.max(np.abs(gradient)) * learningRate  # 沿负梯度方向更新点的位置
     new_points = best_points - gradient * learningRate  # 沿负梯度方向更新点的位置
     new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
