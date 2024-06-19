@@ -118,6 +118,14 @@ def calculate_gradient(points, initial_dist_matrix):
             #     'mean_integration': 1,
             #     'std_integration': 1
             # }
+            # weights = {
+            #     'mean_noChange': 1,
+            #     'std_noChange': 0.1,
+            #     'mean_differentiation': 1,
+            #     'std_differentiation': 0.1,
+            #     'mean_integration': 1,
+            #     'std_integration': 0.1
+            # }
             weights = {
                 'mean_noChange': 1,
                 'std_noChange': 0,
@@ -295,7 +303,7 @@ plt.figure(figsize=(15, 10))
 plt.subplot(3, 2, 1)
 plt.plot(mean_noChange_list, label='mean_noChange')
 plt.scatter(range(len(mean_noChange_list)), mean_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_noChange的变化趋势
-plt.title("mean_noChange 曲线, 应该接近0")  # mean_noChange更接近0，mean_integration更大
+plt.title(f"mean_noChange 曲线, 应该接近0; final mean_noChange: {mean_noChange_list[-1]}")  # mean_noChange更接近0，mean_integration更大
 plt.xlabel("迭代次数")
 plt.ylabel("mean_noChange")
 plt.legend()
@@ -304,7 +312,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.subplot(3, 2, 2)
 plt.plot(std_noChange_list, label='std_noChange')
 plt.scatter(range(len(std_noChange_list)), std_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚std_noChange的变化趋势
-plt.title("std_noChange 曲线")
+plt.title(f"std_noChange 曲线; final std_noChange: {std_noChange_list[-1]}")
 plt.xlabel("迭代次数")
 plt.ylabel("std_noChange")
 plt.legend()
@@ -313,7 +321,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.subplot(3, 2, 3)
 plt.plot(mean_differentiation_list, label='mean_differentiation')
 plt.scatter(range(len(mean_differentiation_list)), mean_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_differentiation的变化趋势
-plt.title("mean_differentiation 曲线")
+plt.title(f"mean_differentiation 曲线; final mean_differentiation: {mean_differentiation_list[-1]}")
 plt.xlabel("迭代次数")
 plt.ylabel("mean_differentiation")
 plt.legend()
@@ -322,7 +330,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.subplot(3, 2, 4)
 plt.plot(std_differentiation_list, label='std_differentiation')
 plt.scatter(range(len(std_differentiation_list)), std_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚std_differentiation的变化趋势
-plt.title("std_differentiation 曲线")
+plt.title(f"std_differentiation 曲线; final std_differentiation: {std_differentiation_list[-1]}")
 plt.xlabel("迭代次数")
 plt.ylabel("std_differentiation")
 plt.legend()
@@ -331,7 +339,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.subplot(3, 2, 5)
 plt.plot(mean_integration_list, label='mean_integration')
 plt.scatter(range(len(mean_integration_list)), mean_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_integration的变化趋势
-plt.title("mean_integration 曲线， 应该更大")  # mean_noChange更接近0，mean_integration更大
+plt.title(f"mean_integration 曲线， 应该更大; final mean_integration: {mean_integration_list[-1]}")  # mean_noChange更接近0，mean_integration更大
 plt.xlabel("迭代次数")
 plt.ylabel("mean_integration")
 plt.legend()
@@ -340,7 +348,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 plt.subplot(3, 2, 6)
 plt.plot(std_integration_list, label='std_integration')
 plt.scatter(range(len(std_integration_list)), std_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚std_integration的变化趋势
-plt.title("std_integration 曲线")
+plt.title(f"std_integration 曲线; final std_integration: {std_integration_list[-1]}")
 plt.xlabel("迭代次数")
 plt.ylabel("std_integration")
 plt.legend()
@@ -348,3 +356,32 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.tight_layout()
 plt.show()
+
+
+def display_cosine_annealing():
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    def cosine_annealing(epoch, total_epochs, initial_lr):
+        return initial_lr * 0.5 * (1 + np.cos(np.pi * epoch / total_epochs))
+
+    # 初始化参数
+    init_learning_rate = 1e-4  # 初始学习率
+    total_epochs = 100  # 总共的epoch数目
+
+    # 生成epoch列表，用于计算每个epoch对应的学习率
+    epochs = np.arange(1, total_epochs + 1)
+
+    # 应用cosine_annealing函数计算每个epoch的学习率
+    lrs = [cosine_annealing(epoch, total_epochs, init_learning_rate) for epoch in epochs]
+
+    # 使用matplotlib绘制学习率随epoch变化的曲线
+    plt.figure(figsize=(10, 5))
+    plt.plot(epochs, lrs)
+    plt.title('Cosine Annealing Learning Rate Schedule')
+    plt.xlabel('Epochs')
+    plt.ylabel('Learning Rate')
+    # plt.yscale('log')  # 使用对数刻度以便更好地观察小数值的变化
+    plt.grid(True)
+    plt.show()
+
