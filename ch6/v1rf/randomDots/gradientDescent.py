@@ -94,7 +94,24 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
     return objective, x, y, t_noChange, p_noChange, t_differentiation, p_differentiation, t_integration, p_integration
 
 
-# 定义一个函数，用于计算梯度
+# # 定义一个函数，用于计算梯度
+# def calculate_gradient(points, initial_dist_matrix):
+#     gradient = np.zeros_like(points)
+#     h = 1e-5  # 微小的扰动，用于计算数值梯度
+#     for i in range(n):
+#         for j in range(2):  # 计算每个点的x和y方向上的梯度
+#             points[i, j] += h
+#             dist_matrix_plus_h = calculate_distance_matrix(points)
+#             objective_plus_h, _, _, _, _, _, _, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
+#
+#             points[i, j] -= 2 * h
+#             dist_matrix_minus_h = calculate_distance_matrix(points)
+#             objective_minus_h, _, _, _, _, _, _, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
+#
+#             points[i, j] += h  # 恢复点的位置
+#             gradient[i, j] = (objective_plus_h - objective_minus_h) / (2 * h)
+#     return gradient
+# 定义一个函数，用于计算各个目标函数的梯度
 def calculate_gradient(points, initial_dist_matrix):
     gradient = np.zeros_like(points)
     h = 1e-5  # 微小的扰动，用于计算数值梯度
@@ -102,14 +119,45 @@ def calculate_gradient(points, initial_dist_matrix):
         for j in range(2):  # 计算每个点的x和y方向上的梯度
             points[i, j] += h
             dist_matrix_plus_h = calculate_distance_matrix(points)
-            objective_plus_h, _, _, _, _, _, _, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
+            (_, _, _,
+             t_noChange_plus_h, p_noChange_plus_h,
+             t_differentiation_plus_h, p_differentiation_plus_h,
+             t_integration_plus_h, p_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
 
             points[i, j] -= 2 * h
             dist_matrix_minus_h = calculate_distance_matrix(points)
-            objective_minus_h, _, _, _, _, _, _, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
+            (_, _, _,
+             t_noChange_minus_h, p_noChange_minus_h,
+             t_differentiation_minus_h, p_differentiation_minus_h,
+             t_integration_minus_h, p_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
 
             points[i, j] += h  # 恢复点的位置
-            gradient[i, j] = (objective_plus_h - objective_minus_h) / (2 * h)
+
+            # 计算每个目标函数的梯度
+            grad_t_noChange = (t_noChange_plus_h - t_noChange_minus_h) / (2 * h)
+            grad_p_noChange = (p_noChange_plus_h - p_noChange_minus_h) / (2 * h)
+            grad_t_differentiation = (t_differentiation_plus_h - t_differentiation_minus_h) / (2 * h)
+            grad_p_differentiation = (p_differentiation_plus_h - p_differentiation_minus_h) / (2 * h)
+            grad_t_integration = (t_integration_plus_h - t_integration_minus_h) / (2 * h)
+            grad_p_integration = (p_integration_plus_h - p_integration_minus_h) / (2 * h)
+
+            # 加权求和
+            # 设置权重
+            weights = {
+                't_noChange': 10,
+                'p_noChange': 1,
+                't_differentiation': 1,
+                'p_differentiation': 1,
+                't_integration': -1,  # 注意 t_integration 的权重为负，因为我们希望它更大
+                'p_integration': 1
+            }
+            gradient[i, j] = (weights['t_noChange'] * grad_t_noChange +
+                             weights['p_noChange'] * grad_p_noChange +
+                             weights['t_differentiation'] * grad_t_differentiation +
+                             weights['p_differentiation'] * grad_p_differentiation +
+                             weights['t_integration'] * grad_t_integration +
+                             weights['p_integration'] * grad_p_integration)
+
     return gradient
 
 def move_points_randomly(points, lambda_factor):
