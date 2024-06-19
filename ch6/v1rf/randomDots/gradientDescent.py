@@ -17,7 +17,7 @@ n = 21
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 100  # 优化迭代次数
+iterations = 1000  # 优化迭代次数
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
