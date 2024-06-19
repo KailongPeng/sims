@@ -38,7 +38,7 @@ import numpy as np
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
 
 # 定义点的数量
-n = 10
+n = 20
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
@@ -87,7 +87,7 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
 
     obj_noChange = mean_noChange**2 + std_noChange  # mean_noChange越接近0，std_noChange越小，目标函数值越小
     obj_differentiation = mean_differentiation + std_differentiation  # mean_differentiation越小于0，std_differentiation越小，目标函数值越小
-    obj_integration = -mean_integration + std_integration  # mean_integration越大于0，std_integration越小，目标函数值越小
+    obj_integration = - mean_integration + std_integration  # mean_integration越大于0，std_integration越小，目标函数值越小
 
     # 计算总体目标函数值
     objective = obj_noChange + obj_differentiation + obj_integration
@@ -137,7 +137,7 @@ def calculate_gradient(points, initial_dist_matrix):
             weights = {
                 'mean_noChange': 1,
                 'std_noChange': 1,
-                'mean_differentiation': 5,
+                'mean_differentiation': 1,
                 'std_differentiation': 1,
                 'mean_integration': 1,
                 'std_integration': 1
@@ -193,7 +193,8 @@ std_integration_list = [initial_std_integration]
 for _ in tqdm(range(iterations)):
     gradient = calculate_gradient(best_points, initial_dist_matrix)  # 计算梯度
     # new_points = best_points - lambda_factor * gradient  # 沿负梯度方向更新点的位置
-    new_points = best_points - gradient/np.max(np.abs(gradient))/1000  # 沿负梯度方向更新点的位置
+    learningRate = 1/100
+    new_points = best_points - gradient/np.max(np.abs(gradient)) * learningRate  # 沿负梯度方向更新点的位置
     new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
     (new_objective, new_x, new_y,
      mean_noChange, std_noChange,
@@ -300,7 +301,7 @@ plt.figure(figsize=(15, 10))
 
 plt.subplot(3, 2, 1)
 plt.plot(mean_noChange_list, label='mean_noChange')
-plt.title("mean_noChange 曲线")
+plt.title("mean_noChange 曲线, 应该接近0")  # mean_noChange更接近0，mean_integration更大
 plt.xlabel("迭代次数")
 plt.ylabel("mean_noChange")
 plt.legend()
@@ -332,7 +333,7 @@ plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 5)
 plt.plot(mean_integration_list, label='mean_integration')
-plt.title("mean_integration 曲线")
+plt.title("mean_integration 曲线， 应该更大")  # mean_noChange更接近0，mean_integration更大
 plt.xlabel("迭代次数")
 plt.ylabel("mean_integration")
 plt.legend()
