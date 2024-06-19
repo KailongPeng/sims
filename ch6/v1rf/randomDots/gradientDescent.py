@@ -85,9 +85,9 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
     t_differentiation, p_differentiation = ttest_1samp(differentiation, 0)
     t_integration, p_integration = ttest_1samp(integration, 0)
 
-    obj_noChange = 10 * t_noChange**2 + p_noChange  # t_noChange越接近0，p_noChange越接近0，目标函数值越小
-    obj_differentiation = t_differentiation + p_differentiation  # t_differentiation越小于0，p_differentiation越接近0，目标函数值越小
-    obj_integration = -t_integration + p_integration  # t_integration越大于0，p_integration越接近0，目标函数值越小
+    obj_noChange = 10 * t_noChange**2 + p_noChange  # t_noChange越接近0，p_noChange越小，目标函数值越小
+    obj_differentiation = t_differentiation + p_differentiation  # t_differentiation越小于0，p_differentiation越小，目标函数值越小
+    obj_integration = -t_integration + p_integration  # t_integration越大于0，p_integration越小，目标函数值越小
 
     # 计算总体目标函数值
     objective = obj_noChange + obj_differentiation + obj_integration
@@ -296,3 +296,7 @@ plt.legend()
 
 plt.tight_layout()
 plt.show()
+
+
+
+# 修改函数，使得并非对于原本的objective = obj_noChange + obj_differentiation + obj_integration进行训练，而是分别对于以下几个目标分别进行gradient的定义，最后把各个目标函数进行加权和并且更新点的移动：t_noChange更接近0，p_noChange更小，t_differentiation更小，p_differentiation更小， t_integration更大，p_integration更小
