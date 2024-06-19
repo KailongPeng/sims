@@ -26,6 +26,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 from scipy.stats import ttest_1samp
+from tqdm import tqdm
 
 # 设置 matplotlib 的默认字体为黑体
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -33,12 +34,15 @@ plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 import numpy as np
 
+# 设置随机种子
+np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
+
 # 定义点的数量
 n = 21
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.1  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 1000  # 优化迭代次数
+iterations = 500  # 优化迭代次数
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -59,6 +63,14 @@ initial_dist_matrix = calculate_distance_matrix(points)
 def move_points_randomly(points, lambda_factor):
     # 随机移动点，移动后的点位置是原始位置加上一个随机值乘以lambda_factor
     new_points = points + (np.random.rand(n, 2) - 0.5) * lambda_factor
+    return new_points
+
+# 定义一个函数，用于随机移动指定索引的点，移动距离由lambda_factor控制
+def move_point_at_index(points, index, lambda_factor):
+    # 复制点集以避免修改原始点集
+    new_points = points.copy()
+    # 仅随机移动指定索引的点，其他点保持不变
+    new_points[index] += (np.random.rand(2) - 0.5) * lambda_factor
     return new_points
 
 # 定义一个函数，用于计算目标函数和散点图数据
@@ -103,22 +115,32 @@ initial_objective, initial_x, initial_y = calculate_objective_and_plot_data(init
 
 # 优化点的位置
 best_points = points.copy()  # 复制初始点集作为最佳点集的初始值
-best_objective = float('inf')  # 初始化最佳目标函数值为无穷大
-best_x = None
-best_y = None
+best_objective = initial_objective  # 初始化最佳目标函数值为初始值
+best_x = initial_x
+best_y = initial_y
+
+# 存储每次迭代的目标函数值以绘制损失曲线
+objectives = [initial_objective]
 
 # 进行迭代优化
-for _ in range(iterations):
-    new_points = move_points_randomly(points, lambda_factor)  # 随机移动点
-    new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
-    new_objective, new_x, new_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
+for _ in tqdm(range(iterations)):
+    # new_points = move_points_randomly(points, lambda_factor)  # 随机移动点
+    # index = np.random.randint(n)  # 随机选择一个点的索引
+    index = _ % n  # 依次选择每个点的索引
 
-    # 如果新的目标函数值小于最佳目标函数值，则更新最佳点集和最佳目标函数值
-    if new_objective < best_objective:
-        best_points = new_points.copy()
-        best_objective = new_objective
-        best_x = new_x
-        best_y = new_y
+    for trial in range(100):
+        new_points = move_point_at_index(best_points, index, lambda_factor)  # 随机移动一个点
+        new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
+        new_objective, new_x, new_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
+
+        # 如果新的目标函数值小于最佳目标函数值，则更新最佳点集和最佳目标函数值
+        if new_objective < best_objective:
+            best_points = new_points.copy()
+            best_objective = new_objective
+            best_x = new_x
+            best_y = new_y
+            objectives.append(new_objective)
+            break
 
 # 绘制初始和最终的点集位置
 plt.figure(figsize=(12, 12))
@@ -154,4 +176,14 @@ plt.legend()
 
 # 调整子图布局并显示所有子图
 plt.tight_layout()
+plt.show()
+
+
+# 绘制损失曲线
+plt.figure()
+plt.plot(objectives, label='目标函数值')
+plt.title("损失曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("目标函数值")
+plt.legend()
 plt.show()
