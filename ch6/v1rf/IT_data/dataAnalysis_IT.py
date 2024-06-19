@@ -153,7 +153,7 @@ def extract_columns(df, trial_name, column_name):
     return ll_array
 
 # Extract the V1ActM for the specified trial
-layerName = "V1ActM"  # or "LGNoffAct" or "V1ActM" "ITActM"
+layerName = "ITActM"  # or "LGNoffAct" or "V1ActM" "ITActM"
 stimuli_act = {}
 for stimuli_name in stimuli_names:
     ll = extract_columns(df, stimuli_name, layerName)
@@ -323,4 +323,122 @@ rep_NMPH(list(stimuli_act.values()),
          after_learning_ID=-1)
 
 
+from sklearn.decomposition import PCA
+
+def visualize_pca(stimuli_act, before_learning_ID=0,title=""):
+    """
+    可视化数据字典中的第一个数据集和所有time point在PCA中的前两个主成分。
+
+    参数:
+    stimuli_act (dict): 数据字典，其中每个键对应一个形状为 (6, 196) 的数组。
+    """
+    # 将数据字典转换为NumPy数组并转置
+    values_list = list(stimuli_act.values())
+    stimuli_act_array = np.array(values_list)
+    stimuli_act_array = stimuli_act_array.transpose(1, 0, 2)
+
+    # 第一个数据集 (21, 196)
+    data1 = stimuli_act_array[before_learning_ID]
+
+    # 使用PCA进行降维
+    pca = PCA(n_components=2)
+    data1_pca = pca.fit_transform(data1)
+
+    # 计算所有数据的最小值和最大值以统一xlim和ylim
+    all_data_pca = []
+    for ii in range(stimuli_act_array.shape[0]):
+        data2 = stimuli_act_array[ii]
+        data2_pca = pca.transform(data2)
+        all_data_pca.append(data2_pca)
+    all_data_pca = np.vstack(all_data_pca)
+    x_min, x_max = all_data_pca[:, 0].min() - 0.1, all_data_pca[:, 0].max() + 0.1
+    y_min, y_max = all_data_pca[:, 1].min() - 0.1, all_data_pca[:, 1].max() + 0.1
+
+    # 可视化每个time point的数据
+    for ii in range(stimuli_act_array.shape[0]):
+        data2 = stimuli_act_array[ii]
+        data2_pca = pca.transform(data2)
+
+        plt.figure(figsize=(8, 6))
+        plt.scatter(data1_pca[:, 0], data1_pca[:, 1], color='blue', label=f'Data {before_learning_ID}')
+        for i in range(data1_pca.shape[0]):
+            plt.annotate(str(i), (data1_pca[i, 0], data1_pca[i, 1]))
+
+        plt.scatter(data2_pca[:, 0], data2_pca[:, 1], color='red', label=f'Data {ii}')
+        for i in range(data2_pca.shape[0]):
+            plt.annotate(str(i), (data2_pca[i, 0], data2_pca[i, 1]))
+
+        plt.xlabel('Principal Component 1')
+        plt.ylabel('Principal Component 2')
+        plt.legend()
+        plt.title(f'{title} timepoint {before_learning_ID} and {ii}')
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        save_path = (f"D:\\Desktop\\simulation\\sims\\ch6\\v1rf\\IT_data\\visualization\\"
+                     f"{title}_PCA_of_timepoint{before_learning_ID}_and_{ii}.png")
+        plt.savefig(save_path)
+        plt.show()
+
+# 调用函数一次性完成所有time point的可视化
+visualize_pca(stimuli_act, before_learning_ID=0, title=layerName)
+
+
+
+# trashBin
+
+# # visualize_pca(stimuli_act,
+# #               before_learning_ID=0,
+# #               after_learning_ID=-2)
+#
+# def visualize_pca(stimuli_act,before_learning_ID=0,after_learning_ID="all"):
+#     """
+#     可视化数据字典中的第一个数据集和最后一个数据集在PCA中的前两个主成分。
+#
+#     参数:
+#     stimuli_act (dict): 数据字典，其中每个键对应一个形状为 (6, 196) 的数组。
+#     """
+#     # 将数据字典转换为NumPy数组并转置
+#     values_list = list(stimuli_act.values())
+#     stimuli_act_array = np.array(values_list)
+#     stimuli_act_array = stimuli_act_array.transpose(1, 0, 2)
+#
+#     # 第一个数据集 (21, 196)
+#     data1 = stimuli_act_array[before_learning_ID]
+#
+#     # 最后一个数据集 (21, 196)
+#     data2 = stimuli_act_array[after_learning_ID]
+#
+#     # 使用PCA进行降维
+#     pca = PCA(n_components=2)
+#     data1_pca = pca.fit_transform(data1)
+#
+#     # 将 data2 投射到相同的PCA转换中
+#     data2_pca = pca.transform(data2)
+#
+#     # 可视化data1的前两个主成分
+#     plt.figure(figsize=(8, 6))
+#     plt.scatter(data1_pca[:, 0], data1_pca[:, 1], color='blue', label='Data1')
+#     for i in range(data1_pca.shape[0]):
+#         plt.annotate(str(i), (data1_pca[i, 0], data1_pca[i, 1]))
+#
+#     # 可视化data2在相同的PCA转换中的前两个主成分
+#     plt.scatter(data2_pca[:, 0], data2_pca[:, 1], color='red', label='Data2')
+#     for i in range(data2_pca.shape[0]):
+#         plt.annotate(str(i), (data2_pca[i, 0], data2_pca[i, 1]))
+#
+#     plt.xlabel('Principal Component 1')
+#     plt.ylabel('Principal Component 2')
+#     plt.legend()
+#     plt.title(f'PCA of {before_learning_ID} and {after_learning_ID}')
+#     plt.xlim(-1.1, 1.4)
+#     plt.ylim(-1.0, 1.1)
+#     save_path = f"D:\\Desktop\\simulation\\sims\\ch6\\v1rf\\IT_data\\visualization\\PCA_of_timepoint{before_learning_ID}_and_{after_learning_ID}.png"
+#     plt.savefig(save_path)
+#     plt.show()
+#
+#
+# for ii in range(0, 6):
+#     visualize_pca(stimuli_act,
+#                   before_learning_ID=0,
+#                   after_learning_ID=ii)
 
