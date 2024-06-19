@@ -42,7 +42,7 @@ n = 21
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.1  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 50  # 优化迭代次数
+iterations = 10  # 优化迭代次数
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -145,7 +145,7 @@ for _ in tqdm(range(iterations)):
     # index = np.random.randint(n)  # 随机选择一个点的索引
     index = _ % n  # 依次选择每个点的索引
 
-    for trial in range(100):
+    for trial in range(1000):
         new_points = move_point_at_index(best_points, index, lambda_factor)  # 随机移动一个点
         new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
         # new_objective, new_x, new_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
@@ -155,7 +155,7 @@ for _ in tqdm(range(iterations)):
          t_integration, p_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
 
         # 如果新的目标函数值小于最佳目标函数值，则更新最佳点集和最佳目标函数值
-        # criteria = new_objective < best_objective
+        criteria = new_objective < best_objective
         # criteria = (np.abs(t_noChange) <= np.abs(best_t_noChange) and
         #             p_noChange <= best_p_noChange and
         #             t_differentiation <= best_t_differentiation and
@@ -166,7 +166,7 @@ for _ in tqdm(range(iterations)):
         #             t_differentiation <= best_t_differentiation and
         #             t_integration >= best_t_integration)
         # criteria = t_differentiation <= best_t_differentiation
-        criteria = t_integration >= best_t_integration
+        # criteria = t_integration >= best_t_integration
         if criteria:
             best_points = new_points.copy()
             best_objective = new_objective
