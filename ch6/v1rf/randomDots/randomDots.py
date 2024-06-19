@@ -42,7 +42,7 @@ n = 21
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.1  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 500  # 优化迭代次数
+iterations = 50  # 优化迭代次数
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -99,19 +99,24 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
     t_differentiation, p_differentiation = ttest_1samp(differentiation, 0)
     t_integration, p_integration = ttest_1samp(integration, 0)
 
-    obj_noChange = np.abs(t_noChange) + p_noChange
+    obj_noChange = 1000 * np.abs(t_noChange) + p_noChange
     obj_differentiation = t_differentiation + p_differentiation
     obj_integration = -t_integration + p_integration
 
     # 计算总体目标函数值
     objective = obj_noChange + obj_differentiation + obj_integration
-    return objective, x, y
+    return objective, x, y, t_noChange, p_noChange, t_differentiation, p_differentiation, t_integration, p_integration
 
 
 # 计算初始目标函数值和散点图数据
 new_points = move_points_randomly(points, lambda_factor)  # 随机移动点
 new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
-initial_objective, initial_x, initial_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
+# initial_objective, initial_x, initial_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
+(initial_objective, initial_x, initial_y,
+ initial_t_noChange, initial_p_noChange,
+ initial_t_differentiation, initial_p_differentiation,
+ initial_t_integration, initial_p_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
+
 
 # 优化点的位置
 best_points = points.copy()  # 复制初始点集作为最佳点集的初始值
@@ -119,8 +124,14 @@ best_objective = initial_objective  # 初始化最佳目标函数值为初始值
 best_x = initial_x
 best_y = initial_y
 
-# 存储每次迭代的目标函数值以绘制损失曲线
+# 存储每次迭代的目标函数值、t值和p值以绘制损失曲线
 objectives = [initial_objective]
+t_noChange_list = [initial_t_noChange]
+p_noChange_list = [initial_p_noChange]
+t_differentiation_list = [initial_t_differentiation]
+p_differentiation_list = [initial_p_differentiation]
+t_integration_list = [initial_t_integration]
+p_integration_list = [initial_p_integration]
 
 # 进行迭代优化
 for _ in tqdm(range(iterations)):
@@ -131,7 +142,11 @@ for _ in tqdm(range(iterations)):
     for trial in range(100):
         new_points = move_point_at_index(best_points, index, lambda_factor)  # 随机移动一个点
         new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
-        new_objective, new_x, new_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
+        # new_objective, new_x, new_y = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
+        (new_objective, new_x, new_y,
+         t_noChange, p_noChange,
+         t_differentiation, p_differentiation,
+         t_integration, p_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
 
         # 如果新的目标函数值小于最佳目标函数值，则更新最佳点集和最佳目标函数值
         if new_objective < best_objective:
@@ -140,6 +155,12 @@ for _ in tqdm(range(iterations)):
             best_x = new_x
             best_y = new_y
             objectives.append(new_objective)
+            t_noChange_list.append(t_noChange)
+            p_noChange_list.append(p_noChange)
+            t_differentiation_list.append(t_differentiation)
+            p_differentiation_list.append(p_differentiation)
+            t_integration_list.append(t_integration)
+            p_integration_list.append(p_integration)
             break
 
 # 绘制初始和最终的点集位置
@@ -158,6 +179,18 @@ plt.title("最终位置")
 plt.xlabel("X")
 plt.ylabel("Y")
 plt.legend()
+
+# 设置相同的xlim和ylim
+xlim = (min(points[:, 0].min(), best_points[:, 0].min()), max(points[:, 0].max(), best_points[:, 0].max()))
+ylim = (min(points[:, 1].min(), best_points[:, 1].min()), max(points[:, 1].max(), best_points[:, 1].max()))
+
+plt.subplot(2, 2, 1)
+plt.xlim(xlim)
+plt.ylim(ylim)
+
+plt.subplot(2, 2, 2)
+plt.xlim(xlim)
+plt.ylim(ylim)
 
 # 绘制初始和最终的目标函数散点图
 plt.subplot(2, 2, 3)
@@ -186,4 +219,53 @@ plt.title("损失曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("目标函数值")
 plt.legend()
+plt.show()
+
+
+# 绘制t值和p值曲线
+plt.figure(figsize=(15, 10))
+
+plt.subplot(3, 2, 1)
+plt.plot(t_noChange_list, label='t_noChange')
+plt.title("t_noChange 曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("t_noChange")
+plt.legend()
+
+plt.subplot(3, 2, 2)
+plt.plot(p_noChange_list, label='p_noChange')
+plt.title("p_noChange 曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("p_noChange")
+plt.legend()
+
+plt.subplot(3, 2, 3)
+plt.plot(t_differentiation_list, label='t_differentiation')
+plt.title("t_differentiation 曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("t_differentiation")
+plt.legend()
+
+plt.subplot(3, 2, 4)
+plt.plot(p_differentiation_list, label='p_differentiation')
+plt.title("p_differentiation 曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("p_differentiation")
+plt.legend()
+
+plt.subplot(3, 2, 5)
+plt.plot(t_integration_list, label='t_integration')
+plt.title("t_integration 曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("t_integration")
+plt.legend()
+
+plt.subplot(3, 2, 6)
+plt.plot(p_integration_list, label='p_integration')
+plt.title("p_integration 曲线")
+plt.xlabel("迭代次数")
+plt.ylabel("p_integration")
+plt.legend()
+
+plt.tight_layout()
 plt.show()
