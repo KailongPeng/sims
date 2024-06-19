@@ -42,7 +42,7 @@ n = 10
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 1000  # 优化迭代次数
+iterations = 100  # 优化迭代次数
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -81,84 +81,19 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
     integration = y_sorted[2 * third:]
 
     # 计算三部分的目标函数值
-    t_noChange, p_noChange = ttest_1samp(noChange, 0)
-    t_differentiation, p_differentiation = ttest_1samp(differentiation, 0)
-    t_integration, p_integration = ttest_1samp(integration, 0)
+    mean_noChange, std_noChange = np.mean(noChange), np.std(noChange)
+    mean_differentiation, std_differentiation = np.mean(differentiation), np.std(differentiation)
+    mean_integration, std_integration = np.mean(integration), np.std(integration)
 
-    obj_noChange = 10 * t_noChange**2 + p_noChange  # t_noChange越接近0，p_noChange越小，目标函数值越小
-    obj_differentiation = t_differentiation + p_differentiation  # t_differentiation越小于0，p_differentiation越小，目标函数值越小
-    obj_integration = -t_integration + p_integration  # t_integration越大于0，p_integration越小，目标函数值越小
+    obj_noChange = mean_noChange**2 + std_noChange  # mean_noChange越接近0，std_noChange越小，目标函数值越小
+    obj_differentiation = mean_differentiation + std_differentiation  # mean_differentiation越小于0，std_differentiation越小，目标函数值越小
+    obj_integration = -mean_integration + std_integration  # mean_integration越大于0，std_integration越小，目标函数值越小
 
     # 计算总体目标函数值
     objective = obj_noChange + obj_differentiation + obj_integration
-    return objective, x, y, t_noChange, p_noChange, t_differentiation, p_differentiation, t_integration, p_integration
+    return objective, x, y, mean_noChange, std_noChange, mean_differentiation, std_differentiation, mean_integration, std_integration
 
 
-# # 定义一个函数，用于计算梯度
-# def calculate_gradient(points, initial_dist_matrix):
-#     gradient = np.zeros_like(points)
-#     h = 1e-5  # 微小的扰动，用于计算数值梯度
-#     for i in range(n):
-#         for j in range(2):  # 计算每个点的x和y方向上的梯度
-#             points[i, j] += h
-#             dist_matrix_plus_h = calculate_distance_matrix(points)
-#             objective_plus_h, _, _, _, _, _, _, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
-#
-#             points[i, j] -= 2 * h
-#             dist_matrix_minus_h = calculate_distance_matrix(points)
-#             objective_minus_h, _, _, _, _, _, _, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
-#
-#             points[i, j] += h  # 恢复点的位置
-#             gradient[i, j] = (objective_plus_h - objective_minus_h) / (2 * h)
-#     return gradient
-# 定义一个函数，用于计算各个目标函数的梯度
-# def calculate_gradient(points, initial_dist_matrix):
-#     gradient = np.zeros_like(points)
-#     h = 1e-5  # 微小的扰动，用于计算数值梯度
-#     for i in range(n):
-#         for j in range(2):  # 计算每个点的x和y方向上的梯度
-#             points[i, j] += h
-#             dist_matrix_plus_h = calculate_distance_matrix(points)
-#             (_, _, _,
-#              t_noChange_plus_h, p_noChange_plus_h,
-#              t_differentiation_plus_h, p_differentiation_plus_h,
-#              t_integration_plus_h, p_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
-#
-#             points[i, j] -= 2 * h
-#             dist_matrix_minus_h = calculate_distance_matrix(points)
-#             (_, _, _,
-#              t_noChange_minus_h, p_noChange_minus_h,
-#              t_differentiation_minus_h, p_differentiation_minus_h,
-#              t_integration_minus_h, p_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
-#
-#             points[i, j] += h  # 恢复点的位置
-#
-#             # 计算每个目标函数的梯度
-#             grad_t_noChange = (t_noChange_plus_h - t_noChange_minus_h) / (2 * h)
-#             grad_p_noChange = (p_noChange_plus_h - p_noChange_minus_h) / (2 * h)
-#             grad_t_differentiation = (t_differentiation_plus_h - t_differentiation_minus_h) / (2 * h)
-#             grad_p_differentiation = (p_differentiation_plus_h - p_differentiation_minus_h) / (2 * h)
-#             grad_t_integration = (t_integration_plus_h - t_integration_minus_h) / (2 * h)
-#             grad_p_integration = (p_integration_plus_h - p_integration_minus_h) / (2 * h)
-#
-#             # 加权求和
-#             # 设置权重
-#             weights = {
-#                 't_noChange': 10,
-#                 'p_noChange': 1,
-#                 't_differentiation': 1,
-#                 'p_differentiation': 1,
-#                 't_integration': -1,  # 注意 t_integration 的权重为负，因为我们希望它更大
-#                 'p_integration': 1
-#             }
-#             gradient[i, j] = (weights['t_noChange'] * grad_t_noChange +
-#                              weights['p_noChange'] * grad_p_noChange +
-#                              weights['t_differentiation'] * grad_t_differentiation +
-#                              weights['p_differentiation'] * grad_p_differentiation +
-#                              weights['t_integration'] * grad_t_integration +
-#                              weights['p_integration'] * grad_p_integration)
-#
-#     return gradient
 def calculate_gradient(points, initial_dist_matrix):
     gradient = np.zeros_like(points)
     h = 1e-5  # 微小的扰动，用于计算数值梯度
@@ -167,55 +102,55 @@ def calculate_gradient(points, initial_dist_matrix):
             points[i, j] += h
             dist_matrix_plus_h = calculate_distance_matrix(points)
             (_, _, _,
-             t_noChange_plus_h, p_noChange_plus_h,
-             t_differentiation_plus_h, p_differentiation_plus_h,
-             t_integration_plus_h, p_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
+             mean_noChange_plus_h, std_noChange_plus_h,
+             mean_differentiation_plus_h, std_differentiation_plus_h,
+             mean_integration_plus_h, std_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
 
             points[i, j] -= 2 * h
             dist_matrix_minus_h = calculate_distance_matrix(points)
             (_, _, _,
-             t_noChange_minus_h, p_noChange_minus_h,
-             t_differentiation_minus_h, p_differentiation_minus_h,
-             t_integration_minus_h, p_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
+             mean_noChange_minus_h, std_noChange_minus_h,
+             mean_differentiation_minus_h, std_differentiation_minus_h,
+             mean_integration_minus_h, std_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
 
             points[i, j] += h  # 恢复点的位置
 
             # 计算每个目标函数的梯度
-            # t_noChange更接近0，p_noChange更大，t_differentiation更小，p_differentiation更小， t_integration 更大，p_integration更小
-            # 总结来说： t_noChange更接近0，p_noChange更大，t_integration更大
-            grad_t_noChange = (t_noChange_plus_h**2 - t_noChange_minus_h**2) / (2 * h)  # 注意这里是 t_noChange 的平方， 因为我们希望它更接近0
-            grad_p_noChange = (p_noChange_plus_h - p_noChange_minus_h) / (2 * h)
-            grad_t_differentiation = (t_differentiation_plus_h - t_differentiation_minus_h) / (2 * h)
-            grad_p_differentiation = (p_differentiation_plus_h - p_differentiation_minus_h) / (2 * h)
-            grad_t_integration = (t_integration_plus_h - t_integration_minus_h) / (2 * h)
-            grad_p_integration = (p_integration_plus_h - p_integration_minus_h) / (2 * h)
+            # mean_noChange更接近0，std_noChange更大，mean_differentiation更小，std_differentiation更小， mean_integration 更大，std_integration更小
+            # 总结来说： mean_noChange更接近0，mean_integration更大
+            grad_mean_noChange = (mean_noChange_plus_h**2 - mean_noChange_minus_h**2) / (2 * h)  # 注意这里是 mean_noChange 的平方， 因为我们希望它更接近0
+            grad_std_noChange = (std_noChange_plus_h - std_noChange_minus_h) / (2 * h)
+            grad_mean_differentiation = (mean_differentiation_plus_h - mean_differentiation_minus_h) / (2 * h)
+            grad_std_differentiation = (std_differentiation_plus_h - std_differentiation_minus_h) / (2 * h)
+            grad_mean_integration = (mean_integration_plus_h - mean_integration_minus_h) / (2 * h)
+            grad_std_integration = (std_integration_plus_h - std_integration_minus_h) / (2 * h)
 
             # 梯度归一化
-            grad_t_noChange /= np.linalg.norm(grad_t_noChange) + 1e-8  # 防止除以零
-            grad_p_noChange /= np.linalg.norm(grad_p_noChange) + 1e-8
-            grad_t_differentiation /= np.linalg.norm(grad_t_differentiation) + 1e-8
-            grad_p_differentiation /= np.linalg.norm(grad_p_differentiation) + 1e-8
-            grad_t_integration /= np.linalg.norm(grad_t_integration) + 1e-8
-            grad_p_integration /= np.linalg.norm(grad_p_integration) + 1e-8
+            grad_mean_noChange /= np.linalg.norm(grad_mean_noChange) + 1e-8  # 防止除以零
+            grad_std_noChange /= np.linalg.norm(grad_std_noChange) + 1e-8
+            grad_mean_differentiation /= np.linalg.norm(grad_mean_differentiation) + 1e-8
+            grad_std_differentiation /= np.linalg.norm(grad_std_differentiation) + 1e-8
+            grad_mean_integration /= np.linalg.norm(grad_mean_integration) + 1e-8
+            grad_std_integration /= np.linalg.norm(grad_std_integration) + 1e-8
 
             # 设置权重
             weights = {
-                't_noChange': 1,
-                'p_noChange': 1,
-                't_differentiation': 10,
-                'p_differentiation': 1,
-                't_integration': 1,
-                'p_integration': 1
+                'mean_noChange': 1,
+                'std_noChange': 1,
+                'mean_differentiation': 5,
+                'std_differentiation': 1,
+                'mean_integration': 1,
+                'std_integration': 1
             }
 
             # 加和归一化后的梯度
             gradient[i, j] = (
-                    grad_t_noChange * weights['t_noChange']
-                    - grad_p_noChange * weights['p_noChange']  # 注意 p_noChange 的符号为负，因为我们希望它更大
-                    + grad_t_differentiation * weights['t_differentiation']
-                    + grad_p_differentiation * weights['p_differentiation']
-                    - grad_t_integration * weights['t_integration']  # 注意 t_integration 的符号为负，因为我们希望它更大
-                    + grad_p_integration * weights['p_integration']
+                    grad_mean_noChange * weights['mean_noChange']
+                    + grad_std_noChange * weights['std_noChange']  # 注意 std_noChange 的符号为正，因为我们希望它更小
+                    + grad_mean_differentiation * weights['mean_differentiation']
+                    + grad_std_differentiation * weights['std_differentiation']
+                    - grad_mean_integration * weights['mean_integration']  # 注意 mean_integration 的符号为负，因为我们希望它更大
+                    + grad_std_integration * weights['std_integration']
             )
 
     return gradient
@@ -229,30 +164,30 @@ def move_points_randomly(points, lambda_factor):
 new_points = move_points_randomly(points, lambda_factor)  # 随机移动点
 new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
 (initial_objective, initial_x, initial_y,
- initial_t_noChange, initial_p_noChange,
- initial_t_differentiation, initial_p_differentiation,
- initial_t_integration, initial_p_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
+ initial_mean_noChange, initial_std_noChange,
+ initial_mean_differentiation, initial_std_differentiation,
+ initial_mean_integration, initial_std_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
 
 # 优化点的位置
 best_points = points.copy()  # 复制初始点集作为最佳点集的初始值
 best_objective = initial_objective  # 初始化最佳目标函数值为初始值
-best_t_noChange = initial_t_noChange
-best_p_noChange = initial_p_noChange
-best_t_differentiation = initial_t_differentiation
-best_p_differentiation = initial_p_differentiation
-best_t_integration = initial_t_integration
-best_p_integration = initial_p_integration
+best_mean_noChange = initial_mean_noChange
+best_std_noChange = initial_std_noChange
+best_mean_differentiation = initial_mean_differentiation
+best_std_differentiation = initial_std_differentiation
+best_mean_integration = initial_mean_integration
+best_std_integration = initial_std_integration
 best_x = initial_x
 best_y = initial_y
 
 # 存储每次迭代的目标函数值、t值和p值以绘制损失曲线
 objectives = [initial_objective]
-t_noChange_list = [initial_t_noChange]
-p_noChange_list = [initial_p_noChange]
-t_differentiation_list = [initial_t_differentiation]
-p_differentiation_list = [initial_p_differentiation]
-t_integration_list = [initial_t_integration]
-p_integration_list = [initial_p_integration]
+mean_noChange_list = [initial_mean_noChange]
+std_noChange_list = [initial_std_noChange]
+mean_differentiation_list = [initial_mean_differentiation]
+std_differentiation_list = [initial_std_differentiation]
+mean_integration_list = [initial_mean_integration]
+std_integration_list = [initial_std_integration]
 
 # 进行迭代优化
 for _ in tqdm(range(iterations)):
@@ -261,42 +196,42 @@ for _ in tqdm(range(iterations)):
     new_points = best_points - gradient/np.max(np.abs(gradient))/1000  # 沿负梯度方向更新点的位置
     new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
     (new_objective, new_x, new_y,
-     t_noChange, p_noChange,
-     t_differentiation, p_differentiation,
-     t_integration, p_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
+     mean_noChange, std_noChange,
+     mean_differentiation, std_differentiation,
+     mean_integration, std_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
 
     # 如果新的目标函数值小于最佳目标函数值，则更新最佳点集和最佳目标函数值
-    criteria = new_objective < best_objective
-    # criteria = (np.abs(t_noChange) <= np.abs(best_t_noChange) and
-    #             p_noChange <= best_p_noChange and
-    #             t_differentiation <= best_t_differentiation and
-    #             p_differentiation <= best_p_differentiation and
-    #             t_integration >= best_t_integration and
-    #             p_integration <= best_p_integration)
-    # criteria = (np.abs(t_noChange) <= np.abs(best_t_noChange) and
-    #             t_differentiation <= best_t_differentiation and
-    #             t_integration >= best_t_integration)
-    # criteria = t_differentiation <= best_t_differentiation
-    # criteria = t_integration >= best_t_integration
+    # criteria = new_objective < best_objective
+    # criteria = (np.abs(mean_noChange) <= np.abs(best_mean_noChange) and
+    #             std_noChange <= best_std_noChange and
+    #             mean_differentiation <= best_mean_differentiation and
+    #             std_differentiation <= best_std_differentiation and
+    #             mean_integration >= best_mean_integration and
+    #             std_integration <= best_std_integration)
+    # criteria = (np.abs(mean_noChange) <= np.abs(best_mean_noChange) and
+    #             mean_differentiation <= best_mean_differentiation and
+    #             mean_integration >= best_mean_integration)
+    # criteria = mean_differentiation <= best_mean_differentiation
+    # criteria = mean_integration >= best_mean_integration
     # if criteria:
     best_points = new_points.copy()
     best_objective = new_objective
-    best_t_noChange = t_noChange
-    best_p_noChange = p_noChange
-    best_t_differentiation = t_differentiation
-    best_p_differentiation = p_differentiation
-    best_t_integration = t_integration
-    best_p_integration = p_integration
+    best_mean_noChange = mean_noChange
+    best_std_noChange = std_noChange
+    best_mean_differentiation = mean_differentiation
+    best_std_differentiation = std_differentiation
+    best_mean_integration = mean_integration
+    best_std_integration = std_integration
     best_x = new_x
     best_y = new_y
 
     objectives.append(new_objective)
-    t_noChange_list.append(t_noChange)
-    p_noChange_list.append(p_noChange)
-    t_differentiation_list.append(t_differentiation)
-    p_differentiation_list.append(p_differentiation)
-    t_integration_list.append(t_integration)
-    p_integration_list.append(p_integration)
+    mean_noChange_list.append(mean_noChange)
+    std_noChange_list.append(std_noChange)
+    mean_differentiation_list.append(mean_differentiation)
+    std_differentiation_list.append(std_differentiation)
+    mean_integration_list.append(mean_integration)
+    std_integration_list.append(std_integration)
 
 
 # 绘制初始和最终的点集位置
@@ -364,56 +299,52 @@ plt.show()
 plt.figure(figsize=(15, 10))
 
 plt.subplot(3, 2, 1)
-plt.plot(t_noChange_list, label='t_noChange')
-plt.title("t_noChange 曲线")
+plt.plot(mean_noChange_list, label='mean_noChange')
+plt.title("mean_noChange 曲线")
 plt.xlabel("迭代次数")
-plt.ylabel("t_noChange")
+plt.ylabel("mean_noChange")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 2)
-plt.plot(p_noChange_list, label='p_noChange')
-plt.title("p_noChange 曲线")
+plt.plot(std_noChange_list, label='std_noChange')
+plt.title("std_noChange 曲线")
 plt.xlabel("迭代次数")
-plt.ylabel("p_noChange")
+plt.ylabel("std_noChange")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 3)
-plt.plot(t_differentiation_list, label='t_differentiation')
-plt.title("t_differentiation 曲线")
+plt.plot(mean_differentiation_list, label='mean_differentiation')
+plt.title("mean_differentiation 曲线")
 plt.xlabel("迭代次数")
-plt.ylabel("t_differentiation")
+plt.ylabel("mean_differentiation")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 4)
-plt.plot(p_differentiation_list, label='p_differentiation')
-plt.title("p_differentiation 曲线")
+plt.plot(std_differentiation_list, label='std_differentiation')
+plt.title("std_differentiation 曲线")
 plt.xlabel("迭代次数")
-plt.ylabel("p_differentiation")
+plt.ylabel("std_differentiation")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 5)
-plt.plot(t_integration_list, label='t_integration')
-plt.title("t_integration 曲线")
+plt.plot(mean_integration_list, label='mean_integration')
+plt.title("mean_integration 曲线")
 plt.xlabel("迭代次数")
-plt.ylabel("t_integration")
+plt.ylabel("mean_integration")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 6)
-plt.plot(p_integration_list, label='p_integration')
-plt.title("p_integration 曲线")
+plt.plot(std_integration_list, label='std_integration')
+plt.title("std_integration 曲线")
 plt.xlabel("迭代次数")
-plt.ylabel("p_integration")
+plt.ylabel("std_integration")
 plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.tight_layout()
 plt.show()
-
-
-
-# 修改函数，使得并非对于原本的objective = obj_noChange + obj_differentiation + obj_integration进行训练，而是分别对于以下几个目标分别进行gradient的定义，最后把各个目标函数进行加权和并且更新点的移动：t_noChange更接近0，p_noChange更小，t_differentiation更小，p_differentiation更小， t_integration更大，p_integration更小
