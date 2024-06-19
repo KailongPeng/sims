@@ -38,11 +38,11 @@ import numpy as np
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
 
 # 定义点的数量
-n = 21
+n = 10
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 10  # 优化迭代次数
+iterations = 1000  # 优化迭代次数
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -112,6 +112,53 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
 #             gradient[i, j] = (objective_plus_h - objective_minus_h) / (2 * h)
 #     return gradient
 # 定义一个函数，用于计算各个目标函数的梯度
+# def calculate_gradient(points, initial_dist_matrix):
+#     gradient = np.zeros_like(points)
+#     h = 1e-5  # 微小的扰动，用于计算数值梯度
+#     for i in range(n):
+#         for j in range(2):  # 计算每个点的x和y方向上的梯度
+#             points[i, j] += h
+#             dist_matrix_plus_h = calculate_distance_matrix(points)
+#             (_, _, _,
+#              t_noChange_plus_h, p_noChange_plus_h,
+#              t_differentiation_plus_h, p_differentiation_plus_h,
+#              t_integration_plus_h, p_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
+#
+#             points[i, j] -= 2 * h
+#             dist_matrix_minus_h = calculate_distance_matrix(points)
+#             (_, _, _,
+#              t_noChange_minus_h, p_noChange_minus_h,
+#              t_differentiation_minus_h, p_differentiation_minus_h,
+#              t_integration_minus_h, p_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
+#
+#             points[i, j] += h  # 恢复点的位置
+#
+#             # 计算每个目标函数的梯度
+#             grad_t_noChange = (t_noChange_plus_h - t_noChange_minus_h) / (2 * h)
+#             grad_p_noChange = (p_noChange_plus_h - p_noChange_minus_h) / (2 * h)
+#             grad_t_differentiation = (t_differentiation_plus_h - t_differentiation_minus_h) / (2 * h)
+#             grad_p_differentiation = (p_differentiation_plus_h - p_differentiation_minus_h) / (2 * h)
+#             grad_t_integration = (t_integration_plus_h - t_integration_minus_h) / (2 * h)
+#             grad_p_integration = (p_integration_plus_h - p_integration_minus_h) / (2 * h)
+#
+#             # 加权求和
+#             # 设置权重
+#             weights = {
+#                 't_noChange': 10,
+#                 'p_noChange': 1,
+#                 't_differentiation': 1,
+#                 'p_differentiation': 1,
+#                 't_integration': -1,  # 注意 t_integration 的权重为负，因为我们希望它更大
+#                 'p_integration': 1
+#             }
+#             gradient[i, j] = (weights['t_noChange'] * grad_t_noChange +
+#                              weights['p_noChange'] * grad_p_noChange +
+#                              weights['t_differentiation'] * grad_t_differentiation +
+#                              weights['p_differentiation'] * grad_p_differentiation +
+#                              weights['t_integration'] * grad_t_integration +
+#                              weights['p_integration'] * grad_p_integration)
+#
+#     return gradient
 def calculate_gradient(points, initial_dist_matrix):
     gradient = np.zeros_like(points)
     h = 1e-5  # 微小的扰动，用于计算数值梯度
@@ -134,29 +181,42 @@ def calculate_gradient(points, initial_dist_matrix):
             points[i, j] += h  # 恢复点的位置
 
             # 计算每个目标函数的梯度
-            grad_t_noChange = (t_noChange_plus_h - t_noChange_minus_h) / (2 * h)
+            # t_noChange更接近0，p_noChange更大，t_differentiation更小，p_differentiation更小， t_integration 更大，p_integration更小
+            # 总结来说： t_noChange更接近0，p_noChange更大，t_integration更大
+            grad_t_noChange = (t_noChange_plus_h**2 - t_noChange_minus_h**2) / (2 * h)  # 注意这里是 t_noChange 的平方， 因为我们希望它更接近0
             grad_p_noChange = (p_noChange_plus_h - p_noChange_minus_h) / (2 * h)
             grad_t_differentiation = (t_differentiation_plus_h - t_differentiation_minus_h) / (2 * h)
             grad_p_differentiation = (p_differentiation_plus_h - p_differentiation_minus_h) / (2 * h)
             grad_t_integration = (t_integration_plus_h - t_integration_minus_h) / (2 * h)
             grad_p_integration = (p_integration_plus_h - p_integration_minus_h) / (2 * h)
 
-            # 加权求和
+            # 梯度归一化
+            grad_t_noChange /= np.linalg.norm(grad_t_noChange) + 1e-8  # 防止除以零
+            grad_p_noChange /= np.linalg.norm(grad_p_noChange) + 1e-8
+            grad_t_differentiation /= np.linalg.norm(grad_t_differentiation) + 1e-8
+            grad_p_differentiation /= np.linalg.norm(grad_p_differentiation) + 1e-8
+            grad_t_integration /= np.linalg.norm(grad_t_integration) + 1e-8
+            grad_p_integration /= np.linalg.norm(grad_p_integration) + 1e-8
+
             # 设置权重
             weights = {
-                't_noChange': 10,
+                't_noChange': 1,
                 'p_noChange': 1,
-                't_differentiation': 1,
+                't_differentiation': 10,
                 'p_differentiation': 1,
-                't_integration': -1,  # 注意 t_integration 的权重为负，因为我们希望它更大
+                't_integration': 1,
                 'p_integration': 1
             }
-            gradient[i, j] = (weights['t_noChange'] * grad_t_noChange +
-                             weights['p_noChange'] * grad_p_noChange +
-                             weights['t_differentiation'] * grad_t_differentiation +
-                             weights['p_differentiation'] * grad_p_differentiation +
-                             weights['t_integration'] * grad_t_integration +
-                             weights['p_integration'] * grad_p_integration)
+
+            # 加和归一化后的梯度
+            gradient[i, j] = (
+                    grad_t_noChange * weights['t_noChange']
+                    - grad_p_noChange * weights['p_noChange']  # 注意 p_noChange 的符号为负，因为我们希望它更大
+                    + grad_t_differentiation * weights['t_differentiation']
+                    + grad_p_differentiation * weights['p_differentiation']
+                    - grad_t_integration * weights['t_integration']  # 注意 t_integration 的符号为负，因为我们希望它更大
+                    + grad_p_integration * weights['p_integration']
+            )
 
     return gradient
 
@@ -198,7 +258,7 @@ p_integration_list = [initial_p_integration]
 for _ in tqdm(range(iterations)):
     gradient = calculate_gradient(best_points, initial_dist_matrix)  # 计算梯度
     # new_points = best_points - lambda_factor * gradient  # 沿负梯度方向更新点的位置
-    new_points = best_points - gradient/np.max(np.abs(gradient))/10  # 沿负梯度方向更新点的位置
+    new_points = best_points - gradient/np.max(np.abs(gradient))/1000  # 沿负梯度方向更新点的位置
     new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
     (new_objective, new_x, new_y,
      t_noChange, p_noChange,
@@ -275,6 +335,8 @@ plt.title("初始目标函数散点图")
 plt.xlabel("-m1")
 plt.ylabel("m2 - m1")
 plt.legend()
+# 画一条 y=0 的参考线
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(2, 2, 4)
 plt.scatter(best_x, best_y, c='red', label='最终')
@@ -282,6 +344,7 @@ plt.title("最终目标函数散点图")
 plt.xlabel("-m1")
 plt.ylabel("m2 - m1")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 # 调整子图布局并显示所有子图
 plt.tight_layout()
@@ -306,6 +369,7 @@ plt.title("t_noChange 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("t_noChange")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 2)
 plt.plot(p_noChange_list, label='p_noChange')
@@ -313,6 +377,7 @@ plt.title("p_noChange 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("p_noChange")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 3)
 plt.plot(t_differentiation_list, label='t_differentiation')
@@ -320,6 +385,7 @@ plt.title("t_differentiation 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("t_differentiation")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 4)
 plt.plot(p_differentiation_list, label='p_differentiation')
@@ -327,6 +393,7 @@ plt.title("p_differentiation 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("p_differentiation")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 5)
 plt.plot(t_integration_list, label='t_integration')
@@ -334,6 +401,7 @@ plt.title("t_integration 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("t_integration")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(3, 2, 6)
 plt.plot(p_integration_list, label='p_integration')
@@ -341,6 +409,7 @@ plt.title("p_integration 曲线")
 plt.xlabel("迭代次数")
 plt.ylabel("p_integration")
 plt.legend()
+plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.tight_layout()
 plt.show()
