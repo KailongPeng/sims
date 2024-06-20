@@ -13,11 +13,11 @@ import numpy as np
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
 
 # 定义点的数量
-n = 20
+n = 40
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 10  # 优化迭代次数
+iterations = 100  # 优化迭代次数
 # 定义学习率
 init_learning_rate = 1e-3
 # 设置权重
@@ -51,9 +51,9 @@ initial_dist_matrix = calculate_distance_matrix(points)
 def pcit(x_coactivation, plotAll=False):
     # Points
     x1, y1 = 0, 0
-    x1_5, y1_5 = 0.1, 0
-    x2, y2 = 0.23, -0.6
-    x3, y3 = 0.5, 0.1
+    x1_5, y1_5 = 0.2, 0
+    x2, y2 = 0.33, -0.6
+    x3, y3 = 0.6, 0.1
     x4, y4 = 1, 0.4
 
     # Adjusted points
