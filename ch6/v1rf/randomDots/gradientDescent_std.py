@@ -17,9 +17,18 @@ n = 40
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 100  # 优化迭代次数
+iterations = 200  # 优化迭代次数
 # 定义学习率
 init_learning_rate = 1e-2
+# 设置权重
+weights = {
+    'mean_noChange': 2,
+    'std_noChange': 0.1,
+    'mean_differentiation': 1,
+    'std_differentiation': 0.1,
+    'mean_integration': 1,
+    'std_integration': 0.1
+}
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
@@ -110,32 +119,6 @@ def calculate_gradient(points, initial_dist_matrix):
             grad_std_differentiation /= np.linalg.norm(grad_std_differentiation) + 1e-8
             grad_mean_integration /= np.linalg.norm(grad_mean_integration) + 1e-8
             grad_std_integration /= np.linalg.norm(grad_std_integration) + 1e-8
-
-            # 设置权重
-            # weights = {
-            #     'mean_noChange': 1,
-            #     'std_noChange': 1,
-            #     'mean_differentiation': 1,
-            #     'std_differentiation': 1,
-            #     'mean_integration': 1,
-            #     'std_integration': 1
-            # }
-            # weights = {
-            #     'mean_noChange': 1,
-            #     'std_noChange': 0.1,
-            #     'mean_differentiation': 1,
-            #     'std_differentiation': 0.1,
-            #     'mean_integration': 1,
-            #     'std_integration': 0.1
-            # }
-            weights = {
-                'mean_noChange': 1,
-                'std_noChange': 0,
-                'mean_differentiation': 1,
-                'std_differentiation': 0,
-                'mean_integration': 1,
-                'std_integration': 0
-            }
 
             # 加和归一化后的梯度
             gradient[i, j] = (
@@ -518,3 +501,11 @@ def display_cosine_annealing():
     plt.show()
 
 
+
+"""
+    下一步要做的事情就是首先获取rep NMPH的图的x和y的lim, 然后根据这个来定义一个 正宗的NMPH curve, 然后再根据这个NMPH curve和当前的x和y的 square of difference来计算目标函数值.
+    然后再根据这个目标函数值来进行优化。
+    
+    =
+    
+"""
