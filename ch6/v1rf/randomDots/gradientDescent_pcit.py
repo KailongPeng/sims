@@ -48,7 +48,7 @@ def calculate_distance_matrix(points):
 initial_dist_matrix = calculate_distance_matrix(points)
 
 
-def pcit(x_coactivation):
+def pcit(x_coactivation, plotAll=False):
     x1, y1 = 0, 0
     x2, y2 = 0.23, -0.6
     x3, y3 = 0.5, 0.1
@@ -72,8 +72,12 @@ def pcit(x_coactivation):
             return y_points[3]
 
     # Apply the piecewise function to the input array
-    return np.array([piecewise_linear(x) for x in x_coactivation])
-
+    y_fit = np.array([piecewise_linear(x) for x in x_coactivation])
+    if plotAll:
+        plt.scatter(x_coactivation, y_fit, label='NMPH')
+        plt.legend()
+        plt.show()
+    return y_fit
 
 
 # 定义一个函数，用于计算目标函数和散点图数据
@@ -86,14 +90,14 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix, plot
     x_coactivation = - m1_distanceMatrix  # m 越大, 越differentiation, 越少的co-activation
     y_integration = - (m2_distanceMatrix - m1_distanceMatrix)  # m 越大, 越differentiation, 因此
 
-    xlim_target = (min(x_coactivation), max(x_coactivation))
-    ylim_target = (min(y_integration), max(y_integration))
+    # xlim_target = (min(x_coactivation), max(x_coactivation))
+    # ylim_target = (min(y_integration), max(y_integration))
     # polynomial = scaleTargetNMPH(xlim_target, ylim_target, plotAll=plotAll, largerIntegrationDifferentiation=largerIntegrationDifferentiation)
 
 
     # 计算目标函数值
     # y_fit = polynomial(x_coactivation)
-    y_fit = pcit(x_coactivation)
+    y_fit = pcit(x_coactivation, plotAll=plotAll)
     objective = np.sum((y_integration - y_fit) ** 2)
 
     return (objective, x_coactivation, y_integration)
@@ -113,7 +117,7 @@ def calculate_gradient(points, initial_dist_matrix, curr_iter):
 
             points[iii, jjj] -= 2 * h
             dist_matrix_minus_h = calculate_distance_matrix(points)
-            obj_minus_h, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h, plotAll=plotAll)
+            obj_minus_h, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h, plotAll=False)
 
             points[iii, jjj] += h  # 恢复点的位置
 
