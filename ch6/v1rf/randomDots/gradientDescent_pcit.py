@@ -13,11 +13,11 @@ import numpy as np
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
 
 # 定义点的数量
-n = 40
+n = 20
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 100  # 优化迭代次数
+iterations = 10  # 优化迭代次数
 # 定义学习率
 init_learning_rate = 1e-3
 # 设置权重
@@ -48,83 +48,32 @@ def calculate_distance_matrix(points):
 initial_dist_matrix = calculate_distance_matrix(points)
 
 
-def scaleTargetNMPH(xlim_target, ylim_target, plotAll=False, largerIntegrationDifferentiation=1):
-    ylim_target = (ylim_target[0] * largerIntegrationDifferentiation, ylim_target[1] * largerIntegrationDifferentiation)
+def pcit(x_coactivation):
+    x1, y1 = 0, 0
+    x2, y2 = 0.23, -0.6
+    x3, y3 = 0.5, 0.1
+    x4, y4 = 1, 0.4
 
-    import numpy as np
-    import matplotlib.pyplot as plt
+    # Points
+    x_points = np.array([x1, x2, x3, x4]) - 1.2
+    y_points = np.array([y1, y2, y3, y4]) * 0.006
 
-    # Define the polynomial
-    polynomial = np.poly1d([-4.35364045e-22, 1.77010151e-18, -2.93175446e-15, 2.55840429e-12,
-                            -1.28789013e-09, 3.90836813e-07, -6.86498808e-05, 4.62717390e-03,
-                            -1.68093593e-01, 2.24259378e+02])
+    # Piecewise linear function
+    def piecewise_linear(x):
+        if x <= x_points[0]:
+            return y_points[0]
+        elif x_points[0] < x <= x_points[1]:
+            return y_points[0] + (y_points[1] - y_points[0]) * (x - x_points[0]) / (x_points[1] - x_points[0])
+        elif x_points[1] < x <= x_points[2]:
+            return y_points[1] + (y_points[2] - y_points[1]) * (x - x_points[1]) / (x_points[2] - x_points[1])
+        elif x_points[2] < x <= x_points[3]:
+            return y_points[2] + (y_points[3] - y_points[2]) * (x - x_points[2]) / (x_points[3] - x_points[2])
+        else:
+            return y_points[3]
 
-    # Original x and y limits
-    xlim = (7, 967)
-    ylim = (5, 436)
+    # Apply the piecewise function to the input array
+    return np.array([piecewise_linear(x) for x in x_coactivation])
 
-    # Generate the original x values and compute the y values
-    x_vals = np.linspace(xlim[0], xlim[1], 10000)
-    y_vals = polynomial(x_vals)
-
-    # Compute scaling factors
-    x_scale = (xlim_target[1] - xlim_target[0]) / (xlim[1] - xlim[0])
-    y_scale = (ylim_target[1] - ylim_target[0]) / (ylim[1] - ylim[0])
-
-    # Compute translation factors
-    x_translate = xlim_target[0] - xlim[0] * x_scale
-    y_translate = ylim_target[0] - ylim[0] * y_scale
-
-    # Apply scaling and translation
-    x_vals_transformed = x_vals * x_scale + x_translate
-    y_vals_transformed = y_vals * y_scale + y_translate
-
-    # Find the y value at x=0 after transformation
-    y_at_zero = polynomial(0 * x_scale + x_translate) * y_scale + y_translate
-
-    # Compute the vertical shift to make the plot pass through (0, 0)
-    vertical_shift = -y_at_zero
-
-    # Apply the vertical shift
-    y_vals_transformed += vertical_shift
-
-    if plotAll:
-        # Plot the transformed data
-        plt.figure(figsize=(10, 6))
-        plt.scatter(x_vals_transformed, y_vals_transformed, color='blue', label='Transformed Polynomial fit', s=0.0001)
-        plt.xlim(xlim_target)
-        plt.ylim(ylim_target)
-        plt.xlabel('X axis (transformed)')
-        plt.ylabel('Y axis (transformed)')
-        plt.legend()
-        plt.title('Transformed Polynomial Plot (passing through origin)')
-        plt.grid(True)
-        plt.show()
-
-    # Fit a new polynomial to the transformed data
-    degree = 9  # Degree of the polynomial (same as the original)
-    new_poly_coeffs = np.polyfit(x_vals_transformed, y_vals_transformed, degree)
-    new_poly = np.poly1d(new_poly_coeffs)
-
-    if plotAll:
-        print("New Polynomial Coefficients:")
-        print(new_poly_coeffs)
-
-    if plotAll:
-        # Plot the new fitted polynomial
-        plt.figure(figsize=(10, 6))
-        plt.scatter(x_vals_transformed, y_vals_transformed, color='blue', label='Transformed Data', s=1)
-        plt.plot(x_vals_transformed, new_poly(x_vals_transformed), color='red', label='Fitted Polynomial')
-        plt.xlim(xlim_target)
-        plt.ylim(ylim_target)
-        plt.xlabel('X axis (transformed)')
-        plt.ylabel('Y axis (transformed)')
-        plt.legend()
-        plt.title('Fitted Polynomial Plot')
-        plt.grid(True)
-        plt.show()
-
-    return new_poly
 
 
 # 定义一个函数，用于计算目标函数和散点图数据
@@ -139,10 +88,12 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix, plot
 
     xlim_target = (min(x_coactivation), max(x_coactivation))
     ylim_target = (min(y_integration), max(y_integration))
-    polynomial = scaleTargetNMPH(xlim_target, ylim_target, plotAll=plotAll, largerIntegrationDifferentiation=largerIntegrationDifferentiation)
+    # polynomial = scaleTargetNMPH(xlim_target, ylim_target, plotAll=plotAll, largerIntegrationDifferentiation=largerIntegrationDifferentiation)
+
 
     # 计算目标函数值
-    y_fit = polynomial(x_coactivation)
+    # y_fit = polynomial(x_coactivation)
+    y_fit = pcit(x_coactivation)
     objective = np.sum((y_integration - y_fit) ** 2)
 
     return (objective, x_coactivation, y_integration)
