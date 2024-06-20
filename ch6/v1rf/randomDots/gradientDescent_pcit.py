@@ -49,14 +49,16 @@ initial_dist_matrix = calculate_distance_matrix(points)
 
 
 def pcit(x_coactivation, plotAll=False):
+    # Points
     x1, y1 = 0, 0
+    x1_5, y1_5 = 0.1, 0
     x2, y2 = 0.23, -0.6
     x3, y3 = 0.5, 0.1
     x4, y4 = 1, 0.4
 
-    # Points
-    x_points = np.array([x1, x2, x3, x4]) - 1.2
-    y_points = np.array([y1, y2, y3, y4]) * 0.006
+    # Adjusted points
+    x_points = np.array([x1, x1_5, x2, x3, x4]) - 1.2
+    y_points = np.array([y1, y1_5, y2, y3, y4]) * 0.5
 
     # Piecewise linear function
     def piecewise_linear(x):
@@ -68,15 +70,19 @@ def pcit(x_coactivation, plotAll=False):
             return y_points[1] + (y_points[2] - y_points[1]) * (x - x_points[1]) / (x_points[2] - x_points[1])
         elif x_points[2] < x <= x_points[3]:
             return y_points[2] + (y_points[3] - y_points[2]) * (x - x_points[2]) / (x_points[3] - x_points[2])
+        elif x_points[3] < x <= x_points[4]:
+            return y_points[3] + (y_points[4] - y_points[3]) * (x - x_points[3]) / (x_points[4] - x_points[3])
         else:
-            return y_points[3]
+            return y_points[4]
 
     # Apply the piecewise function to the input array
     y_fit = np.array([piecewise_linear(x) for x in x_coactivation])
+
     if plotAll:
         plt.scatter(x_coactivation, y_fit, label='NMPH')
         plt.legend()
         plt.show()
+
     return y_fit
 
 
