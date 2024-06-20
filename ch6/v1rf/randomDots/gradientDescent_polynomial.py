@@ -13,11 +13,11 @@ import numpy as np
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
 
 # 定义点的数量
-n = 40
+n = 20
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 200  # 优化迭代次数
+iterations = 10  # 优化迭代次数
 # 定义学习率
 init_learning_rate = 1e-2
 # 设置权重
@@ -29,9 +29,11 @@ weights = {
     'mean_integration': 1,
     'std_integration': 0.1
 }
+plotAll = False
 
 # 在0到1的二维平面上随机均匀分布n个点
 points = np.random.rand(n, 2)
+
 
 # 定义一个函数，用于计算点集的距离矩阵
 def calculate_distance_matrix(points):
@@ -42,8 +44,101 @@ def calculate_distance_matrix(points):
                 dist_matrix[i, j] = np.linalg.norm(points[i] - points[j])  # 计算两点间的距离
     return dist_matrix
 
+
 # 计算初始点集的距离矩阵
 initial_dist_matrix = calculate_distance_matrix(points)
+
+
+def scaleTargetNMPH(xlim_target, ylim_target, plotAll=False):
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    # Define the polynomial
+    polynomial = np.poly1d([-4.35364045e-22, 1.77010151e-18, -2.93175446e-15, 2.55840429e-12,
+                            -1.28789013e-09, 3.90836813e-07, -6.86498808e-05, 4.62717390e-03,
+                            -1.68093593e-01, 2.24259378e+02])
+
+    # Original x and y limits
+    xlim = (7, 967)
+    ylim = (5, 436)
+
+    # # Target x and y limits
+    # xlim_target = (0, 10)
+    # ylim_target = (-10, 10)
+
+    # Generate the original x values and compute the y values
+    x_vals = np.linspace(xlim[0], xlim[1], 10000)
+    y_vals = polynomial(x_vals)
+
+    # Compute scaling factors
+    x_scale = (xlim_target[1] - xlim_target[0]) / (xlim[1] - xlim[0])
+    y_scale = (ylim_target[1] - ylim_target[0]) / (ylim[1] - ylim[0])
+
+    # Compute translation factors
+    x_translate = xlim_target[0] - xlim[0] * x_scale
+    y_translate = ylim_target[0] - ylim[0] * y_scale
+
+    # Apply scaling and translation
+    x_vals_transformed = x_vals * x_scale + x_translate
+    y_vals_transformed = y_vals * y_scale + y_translate
+
+    # Find the y value at x=0 after transformation
+    y_at_zero = polynomial(0 * x_scale + x_translate) * y_scale + y_translate
+
+    # Compute the vertical shift to make the plot pass through (0, 0)
+    vertical_shift = -y_at_zero
+
+    # Apply the vertical shift
+    y_vals_transformed += vertical_shift
+
+    if plotAll:
+        # Plot the transformed data
+        plt.figure(figsize=(10, 6))
+        plt.scatter(x_vals_transformed, y_vals_transformed, color='blue', label='Transformed Polynomial fit', s=0.0001)
+        plt.xlim(xlim_target)
+        plt.ylim(ylim_target)
+        plt.xlabel('X axis (transformed)')
+        plt.ylabel('Y axis (transformed)')
+        plt.legend()
+        plt.title('Transformed Polynomial Plot (passing through origin)')
+        plt.grid(True)
+        plt.show()
+    # return x_vals_transformed, y_vals_transformed
+
+    # x_vals_transformed, y_vals_transformed = scaleTargetNMPH(xlim_target, ylim_target)
+
+    # Fit a new polynomial to the transformed data
+    degree = 9  # Degree of the polynomial (same as the original)
+    new_poly_coeffs = np.polyfit(x_vals_transformed, y_vals_transformed, degree)
+    new_poly = np.poly1d(new_poly_coeffs)
+
+    if plotAll:
+        print("New Polynomial Coefficients:")
+        print(new_poly_coeffs)
+
+    if plotAll:
+        # Plot the new fitted polynomial
+        plt.figure(figsize=(10, 6))
+        plt.scatter(x_vals_transformed, y_vals_transformed, color='blue', label='Transformed Data', s=1)
+        plt.plot(x_vals_transformed, new_poly(x_vals_transformed), color='red', label='Fitted Polynomial')
+        plt.xlim(xlim_target)
+        plt.ylim(ylim_target)
+        plt.xlabel('X axis (transformed)')
+        plt.ylabel('Y axis (transformed)')
+        plt.legend()
+        plt.title('Fitted Polynomial Plot')
+        plt.grid(True)
+        plt.show()
+
+    return new_poly
+
+    # Target x and y limits
+    # xlim_target = (0, 5)
+    # ylim_target = (-5, 5)
+    # # xlim_target = (min(x), max(x))
+    # # ylim_target = (min(y), max(y))
+    # new_poly = scaleTargetNMPH(xlim_target, ylim_target, plotAll=False)
+
 
 # 定义一个函数，用于计算目标函数和散点图数据
 def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
@@ -55,87 +150,119 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix):
     x_coactivation = - m1_distanceMatrix  # m 越大, 越differentiation, 越少的co-activation
     y_integration = - (m2_distanceMatrix - m1_distanceMatrix)  # m 越大, 越differentiation, 因此
 
-    # 根据x轴的值进行排序
-    sorted_indices = np.argsort(x_coactivation)
-    x_sorted = x_coactivation[sorted_indices]
-    y_sorted = y_integration[sorted_indices]
+    xlim_target = (min(x_coactivation), max(x_coactivation))
+    ylim_target = (min(y_integration), max(y_integration))
+    polynomial = scaleTargetNMPH(xlim_target, ylim_target, plotAll=plotAll)
 
-    # 将排序后的x轴值分为三部分：noChange, differentiation, integration
-    third = len(x_sorted) // 3
-    noChange = y_sorted[:third]
-    differentiation = y_sorted[third:2 * third]
-    integration = y_sorted[2 * third:]
+    # 计算目标函数值
+    y_fit = polynomial(x_coactivation)
+    objective = np.sum((y_integration - y_fit) ** 2)
 
-    # 计算三部分的目标函数值
-    mean_noChange, std_noChange = np.mean(noChange), np.std(noChange)
-    mean_differentiation, std_differentiation = np.mean(differentiation), np.std(differentiation)
-    mean_integration, std_integration = np.mean(integration), np.std(integration)
+    return (objective, x_coactivation, y_integration)
+    # # 根据x轴的值进行排序
+    # sorted_indices = np.argsort(x_coactivation)
+    # x_sorted = x_coactivation[sorted_indices]
+    # y_sorted = y_integration[sorted_indices]
+    #
+    # # 将排序后的x轴值分为三部分：noChange, differentiation, integration
+    # third = len(x_sorted) // 3
+    # noChange = y_sorted[:third]
+    # differentiation = y_sorted[third:2 * third]
+    # integration = y_sorted[2 * third:]
+    #
+    # # 计算三部分的目标函数值
+    # mean_noChange, std_noChange = np.mean(noChange), np.std(noChange)
+    # mean_differentiation, std_differentiation = np.mean(differentiation), np.std(differentiation)
+    # mean_integration, std_integration = np.mean(integration), np.std(integration)
+    #
+    # obj_noChange = mean_noChange**2 + std_noChange  # mean_noChange越接近0，std_noChange越小，目标函数值越小
+    # obj_differentiation = mean_differentiation + std_differentiation  # mean_differentiation越小于0，std_differentiation越小，目标函数值越小
+    # obj_integration = - mean_integration + std_integration  # mean_integration越大于0，std_integration越小，目标函数值越小
+    #
+    # # 计算总体目标函数值
+    # objective = obj_noChange + obj_differentiation + obj_integration
+    # return (objective, x_coactivation, y_integration,
+    #         mean_noChange, std_noChange, mean_differentiation, std_differentiation, mean_integration, std_integration)
 
-    obj_noChange = mean_noChange**2 + std_noChange  # mean_noChange越接近0，std_noChange越小，目标函数值越小
-    obj_differentiation = mean_differentiation + std_differentiation  # mean_differentiation越小于0，std_differentiation越小，目标函数值越小
-    obj_integration = - mean_integration + std_integration  # mean_integration越大于0，std_integration越小，目标函数值越小
 
-    # 计算总体目标函数值
-    objective = obj_noChange + obj_differentiation + obj_integration
-    return (objective, x_coactivation, y_integration,
-            mean_noChange, std_noChange, mean_differentiation, std_differentiation, mean_integration, std_integration)
-
+# def calculate_gradient(points, initial_dist_matrix):
+#     gradient = np.zeros_like(points)
+#     h = 1e-5  # 微小的扰动，用于计算数值梯度
+#     for i in range(n):
+#         for j in range(2):  # 计算每个点的x和y方向上的梯度
+#             points[i, j] += h
+#             dist_matrix_plus_h = calculate_distance_matrix(points)
+#             (_, _, _,
+#              mean_noChange_plus_h, std_noChange_plus_h,
+#              mean_differentiation_plus_h, std_differentiation_plus_h,
+#              mean_integration_plus_h, std_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
+#
+#             points[i, j] -= 2 * h
+#             dist_matrix_minus_h = calculate_distance_matrix(points)
+#             (_, _, _,
+#              mean_noChange_minus_h, std_noChange_minus_h,
+#              mean_differentiation_minus_h, std_differentiation_minus_h,
+#              mean_integration_minus_h, std_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
+#
+#             points[i, j] += h  # 恢复点的位置
+#
+#             # 计算每个目标函数的梯度
+#             # mean_noChange更接近0，std_noChange更大，mean_differentiation更小，std_differentiation更小， mean_integration 更大，std_integration更小
+#             # 总结来说： mean_noChange更接近0，mean_integration更大
+#             grad_mean_noChange = (mean_noChange_plus_h**2 - mean_noChange_minus_h**2) / (2 * h)  # 注意这里是 mean_noChange 的平方， 因为我们希望它更接近0
+#             grad_std_noChange = (std_noChange_plus_h - std_noChange_minus_h) / (2 * h)
+#             grad_mean_differentiation = (mean_differentiation_plus_h - mean_differentiation_minus_h) / (2 * h)
+#             grad_std_differentiation = (std_differentiation_plus_h - std_differentiation_minus_h) / (2 * h)
+#             grad_mean_integration = (mean_integration_plus_h - mean_integration_minus_h) / (2 * h)
+#             grad_std_integration = (std_integration_plus_h - std_integration_minus_h) / (2 * h)
+#
+#             # 梯度归一化
+#             grad_mean_noChange /= np.linalg.norm(grad_mean_noChange) + 1e-8  # 防止除以零
+#             grad_std_noChange /= np.linalg.norm(grad_std_noChange) + 1e-8
+#             grad_mean_differentiation /= np.linalg.norm(grad_mean_differentiation) + 1e-8
+#             grad_std_differentiation /= np.linalg.norm(grad_std_differentiation) + 1e-8
+#             grad_mean_integration /= np.linalg.norm(grad_mean_integration) + 1e-8
+#             grad_std_integration /= np.linalg.norm(grad_std_integration) + 1e-8
+#
+#             # 加和归一化后的梯度
+#             gradient[i, j] = (
+#                     grad_mean_noChange * weights['mean_noChange']
+#                     + grad_std_noChange * weights['std_noChange']
+#                     + grad_mean_differentiation * weights['mean_differentiation']
+#                     + grad_std_differentiation * weights['std_differentiation']
+#                     - grad_mean_integration * weights['mean_integration']  # 注意 mean_integration 的符号为负，因为我们希望它更大
+#                     + grad_std_integration * weights['std_integration']
+#             )
+#
+#     return gradient
 
 def calculate_gradient(points, initial_dist_matrix):
     gradient = np.zeros_like(points)
     h = 1e-5  # 微小的扰动，用于计算数值梯度
-    for i in range(n):
-        for j in range(2):  # 计算每个点的x和y方向上的梯度
-            points[i, j] += h
+    for iii in range(n):
+        for jjj in range(2):  # 计算每个点的x和y方向上的梯度
+            points[iii, jjj] += h
             dist_matrix_plus_h = calculate_distance_matrix(points)
-            (_, _, _,
-             mean_noChange_plus_h, std_noChange_plus_h,
-             mean_differentiation_plus_h, std_differentiation_plus_h,
-             mean_integration_plus_h, std_integration_plus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
+            obj_plus_h, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_plus_h)
 
-            points[i, j] -= 2 * h
+            points[iii, jjj] -= 2 * h
             dist_matrix_minus_h = calculate_distance_matrix(points)
-            (_, _, _,
-             mean_noChange_minus_h, std_noChange_minus_h,
-             mean_differentiation_minus_h, std_differentiation_minus_h,
-             mean_integration_minus_h, std_integration_minus_h) = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
+            obj_minus_h, _, _ = calculate_objective_and_plot_data(initial_dist_matrix, dist_matrix_minus_h)
 
-            points[i, j] += h  # 恢复点的位置
+            points[iii, jjj] += h  # 恢复点的位置
 
-            # 计算每个目标函数的梯度
-            # mean_noChange更接近0，std_noChange更大，mean_differentiation更小，std_differentiation更小， mean_integration 更大，std_integration更小
-            # 总结来说： mean_noChange更接近0，mean_integration更大
-            grad_mean_noChange = (mean_noChange_plus_h**2 - mean_noChange_minus_h**2) / (2 * h)  # 注意这里是 mean_noChange 的平方， 因为我们希望它更接近0
-            grad_std_noChange = (std_noChange_plus_h - std_noChange_minus_h) / (2 * h)
-            grad_mean_differentiation = (mean_differentiation_plus_h - mean_differentiation_minus_h) / (2 * h)
-            grad_std_differentiation = (std_differentiation_plus_h - std_differentiation_minus_h) / (2 * h)
-            grad_mean_integration = (mean_integration_plus_h - mean_integration_minus_h) / (2 * h)
-            grad_std_integration = (std_integration_plus_h - std_integration_minus_h) / (2 * h)
-
-            # 梯度归一化
-            grad_mean_noChange /= np.linalg.norm(grad_mean_noChange) + 1e-8  # 防止除以零
-            grad_std_noChange /= np.linalg.norm(grad_std_noChange) + 1e-8
-            grad_mean_differentiation /= np.linalg.norm(grad_mean_differentiation) + 1e-8
-            grad_std_differentiation /= np.linalg.norm(grad_std_differentiation) + 1e-8
-            grad_mean_integration /= np.linalg.norm(grad_mean_integration) + 1e-8
-            grad_std_integration /= np.linalg.norm(grad_std_integration) + 1e-8
-
-            # 加和归一化后的梯度
-            gradient[i, j] = (
-                    grad_mean_noChange * weights['mean_noChange']
-                    + grad_std_noChange * weights['std_noChange']
-                    + grad_mean_differentiation * weights['mean_differentiation']
-                    + grad_std_differentiation * weights['std_differentiation']
-                    - grad_mean_integration * weights['mean_integration']  # 注意 mean_integration 的符号为负，因为我们希望它更大
-                    + grad_std_integration * weights['std_integration']
-            )
+            # 计算目标函数的梯度
+            gradient[iii, jjj] = (obj_plus_h - obj_minus_h) / (2 * h)
 
     return gradient
+
+
 
 def move_points_randomly(points, lambda_factor):
     # 随机移动点，移动后的点位置是原始位置加上一个随机值乘以lambda_factor
     new_points = points + (np.random.rand(n, 2) - 0.5) * lambda_factor
     return new_points
+
 
 # 初始化 Adam 优化器参数
 beta1 = 0.9
@@ -148,36 +275,35 @@ t = 0
 # 计算初始目标函数值和散点图数据
 new_points = move_points_randomly(points, lambda_factor)  # 随机移动点
 new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
-(initial_objective, initial_x, initial_y,
- initial_mean_noChange, initial_std_noChange,
- initial_mean_differentiation, initial_std_differentiation,
- initial_mean_integration, initial_std_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
+# return (objective, x_coactivation, y_integration)
+(initial_objective, initial_x, initial_y) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)
 
 # 优化点的位置
 best_points = points.copy()  # 复制初始点集作为最佳点集的初始值
 best_objective = initial_objective  # 初始化最佳目标函数值为初始值
-best_mean_noChange = initial_mean_noChange
-best_std_noChange = initial_std_noChange
-best_mean_differentiation = initial_mean_differentiation
-best_std_differentiation = initial_std_differentiation
-best_mean_integration = initial_mean_integration
-best_std_integration = initial_std_integration
+# best_mean_noChange = initial_mean_noChange
+# best_std_noChange = initial_std_noChange
+# best_mean_differentiation = initial_mean_differentiation
+# best_std_differentiation = initial_std_differentiation
+# best_mean_integration = initial_mean_integration
+# best_std_integration = initial_std_integration
 best_x = initial_x
 best_y = initial_y
 
 # 存储每次迭代的目标函数值、t值和p值以绘制损失曲线
 objectives = [initial_objective]
-mean_noChange_list = [initial_mean_noChange]
-std_noChange_list = [initial_std_noChange]
-mean_differentiation_list = [initial_mean_differentiation]
-std_differentiation_list = [initial_std_differentiation]
-mean_integration_list = [initial_mean_integration]
-std_integration_list = [initial_std_integration]
+# mean_noChange_list = [initial_mean_noChange]
+# std_noChange_list = [initial_std_noChange]
+# mean_differentiation_list = [initial_mean_differentiation]
+# std_differentiation_list = [initial_std_differentiation]
+# mean_integration_list = [initial_mean_integration]
+# std_integration_list = [initial_std_integration]
 
 
 # 定义学习率调度器
 def cosine_annealing(epoch, total_epochs, initial_lr):
     return initial_lr * 0.5 * (1 + np.cos(np.pi * epoch / total_epochs))
+
 
 # 进行迭代优化
 for _ in tqdm(range(iterations)):
@@ -195,29 +321,26 @@ for _ in tqdm(range(iterations)):
     new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
     # new_points = best_points - gradient * learningRate  # 沿负梯度方向更新点的位置
     # new_dist_matrix = calculate_distance_matrix(new_points)  # 计算新的距离矩阵
-    (new_objective, new_x, new_y,
-     mean_noChange, std_noChange,
-     mean_differentiation, std_differentiation,
-     mean_integration, std_integration) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
+    (new_objective, new_x, new_y) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
 
     best_points = new_points.copy()
     best_objective = new_objective
-    best_mean_noChange = mean_noChange
-    best_std_noChange = std_noChange
-    best_mean_differentiation = mean_differentiation
-    best_std_differentiation = std_differentiation
-    best_mean_integration = mean_integration
-    best_std_integration = std_integration
+    # best_mean_noChange = mean_noChange
+    # best_std_noChange = std_noChange
+    # best_mean_differentiation = mean_differentiation
+    # best_std_differentiation = std_differentiation
+    # best_mean_integration = mean_integration
+    # best_std_integration = std_integration
     best_x = new_x
     best_y = new_y
 
     objectives.append(new_objective)
-    mean_noChange_list.append(mean_noChange)
-    std_noChange_list.append(std_noChange)
-    mean_differentiation_list.append(mean_differentiation)
-    std_differentiation_list.append(std_differentiation)
-    mean_integration_list.append(mean_integration)
-    std_integration_list.append(std_integration)
+    # mean_noChange_list.append(mean_noChange)
+    # std_noChange_list.append(std_noChange)
+    # mean_differentiation_list.append(mean_differentiation)
+    # std_differentiation_list.append(std_differentiation)
+    # mean_integration_list.append(mean_integration)
+    # std_integration_list.append(std_integration)
 
 
 # 绘制初始和最终的点集位置
@@ -287,65 +410,65 @@ plt.legend()
 plt.show()
 
 
-# 绘制t值和p值曲线
-plt.figure(figsize=(15, 10))
-
-plt.subplot(3, 2, 1)
-plt.plot(mean_noChange_list, label='mean_noChange')
-plt.scatter(range(len(mean_noChange_list)), mean_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_noChange的变化趋势
-plt.title(f"mean_noChange 曲线, 应该接近0; final mean_noChange: {mean_noChange_list[-1]}")  # mean_noChange更接近0，mean_integration更大
-plt.xlabel("迭代次数")
-plt.ylabel("mean_noChange")
-plt.legend()
-plt.axhline(y=0, color='gray', linestyle='--')
-
-plt.subplot(3, 2, 2)
-plt.plot(std_noChange_list, label='std_noChange')
-plt.scatter(range(len(std_noChange_list)), std_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚std_noChange的变化趋势
-plt.title(f"std_noChange 曲线; final std_noChange: {std_noChange_list[-1]}")
-plt.xlabel("迭代次数")
-plt.ylabel("std_noChange")
-plt.legend()
-plt.axhline(y=0, color='gray', linestyle='--')
-
-plt.subplot(3, 2, 3)
-plt.plot(mean_differentiation_list, label='mean_differentiation')
-plt.scatter(range(len(mean_differentiation_list)), mean_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_differentiation的变化趋势
-plt.title(f"mean_differentiation 曲线; final mean_differentiation: {mean_differentiation_list[-1]}")
-plt.xlabel("迭代次数")
-plt.ylabel("mean_differentiation")
-plt.legend()
-plt.axhline(y=0, color='gray', linestyle='--')
-
-plt.subplot(3, 2, 4)
-plt.plot(std_differentiation_list, label='std_differentiation')
-plt.scatter(range(len(std_differentiation_list)), std_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚std_differentiation的变化趋势
-plt.title(f"std_differentiation 曲线; final std_differentiation: {std_differentiation_list[-1]}")
-plt.xlabel("迭代次数")
-plt.ylabel("std_differentiation")
-plt.legend()
-plt.axhline(y=0, color='gray', linestyle='--')
-
-plt.subplot(3, 2, 5)
-plt.plot(mean_integration_list, label='mean_integration')
-plt.scatter(range(len(mean_integration_list)), mean_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_integration的变化趋势
-plt.title(f"mean_integration 曲线， 应该更大; final mean_integration: {mean_integration_list[-1]}")  # mean_noChange更接近0，mean_integration更大
-plt.xlabel("迭代次数")
-plt.ylabel("mean_integration")
-plt.legend()
-plt.axhline(y=0, color='gray', linestyle='--')
-
-plt.subplot(3, 2, 6)
-plt.plot(std_integration_list, label='std_integration')
-plt.scatter(range(len(std_integration_list)), std_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚std_integration的变化趋势
-plt.title(f"std_integration 曲线; final std_integration: {std_integration_list[-1]}")
-plt.xlabel("迭代次数")
-plt.ylabel("std_integration")
-plt.legend()
-plt.axhline(y=0, color='gray', linestyle='--')
-
-plt.tight_layout()
-plt.show()
+# # 绘制t值和p值曲线
+# plt.figure(figsize=(15, 10))
+#
+# plt.subplot(3, 2, 1)
+# plt.plot(mean_noChange_list, label='mean_noChange')
+# plt.scatter(range(len(mean_noChange_list)), mean_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_noChange的变化趋势
+# plt.title(f"mean_noChange 曲线, 应该接近0; final mean_noChange: {mean_noChange_list[-1]}")  # mean_noChange更接近0，mean_integration更大
+# plt.xlabel("迭代次数")
+# plt.ylabel("mean_noChange")
+# plt.legend()
+# plt.axhline(y=0, color='gray', linestyle='--')
+#
+# plt.subplot(3, 2, 2)
+# plt.plot(std_noChange_list, label='std_noChange')
+# plt.scatter(range(len(std_noChange_list)), std_noChange_list, c='red')  # 这里加上这个scatter，是为了看清楚std_noChange的变化趋势
+# plt.title(f"std_noChange 曲线; final std_noChange: {std_noChange_list[-1]}")
+# plt.xlabel("迭代次数")
+# plt.ylabel("std_noChange")
+# plt.legend()
+# plt.axhline(y=0, color='gray', linestyle='--')
+#
+# plt.subplot(3, 2, 3)
+# plt.plot(mean_differentiation_list, label='mean_differentiation')
+# plt.scatter(range(len(mean_differentiation_list)), mean_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_differentiation的变化趋势
+# plt.title(f"mean_differentiation 曲线; final mean_differentiation: {mean_differentiation_list[-1]}")
+# plt.xlabel("迭代次数")
+# plt.ylabel("mean_differentiation")
+# plt.legend()
+# plt.axhline(y=0, color='gray', linestyle='--')
+#
+# plt.subplot(3, 2, 4)
+# plt.plot(std_differentiation_list, label='std_differentiation')
+# plt.scatter(range(len(std_differentiation_list)), std_differentiation_list, c='red')  # 这里加上这个scatter，是为了看清楚std_differentiation的变化趋势
+# plt.title(f"std_differentiation 曲线; final std_differentiation: {std_differentiation_list[-1]}")
+# plt.xlabel("迭代次数")
+# plt.ylabel("std_differentiation")
+# plt.legend()
+# plt.axhline(y=0, color='gray', linestyle='--')
+#
+# plt.subplot(3, 2, 5)
+# plt.plot(mean_integration_list, label='mean_integration')
+# plt.scatter(range(len(mean_integration_list)), mean_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚mean_integration的变化趋势
+# plt.title(f"mean_integration 曲线， 应该更大; final mean_integration: {mean_integration_list[-1]}")  # mean_noChange更接近0，mean_integration更大
+# plt.xlabel("迭代次数")
+# plt.ylabel("mean_integration")
+# plt.legend()
+# plt.axhline(y=0, color='gray', linestyle='--')
+#
+# plt.subplot(3, 2, 6)
+# plt.plot(std_integration_list, label='std_integration')
+# plt.scatter(range(len(std_integration_list)), std_integration_list, c='red')  # 这里加上这个scatter，是为了看清楚std_integration的变化趋势
+# plt.title(f"std_integration 曲线; final std_integration: {std_integration_list[-1]}")
+# plt.xlabel("迭代次数")
+# plt.ylabel("std_integration")
+# plt.legend()
+# plt.axhline(y=0, color='gray', linestyle='--')
+#
+# plt.tight_layout()
+# plt.show()
 
 def cubic_analysis(xAxisData, learning_effect_reshaped):
     from sklearn.model_selection import KFold
@@ -473,39 +596,20 @@ def cubic_analysis(xAxisData, learning_effect_reshaped):
 cubic_analysis(best_x, best_y)
 
 
-def display_cosine_annealing():
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    def cosine_annealing(epoch, total_epochs, initial_lr):
-        return initial_lr * 0.5 * (1 + np.cos(np.pi * epoch / total_epochs))
-
-    # 初始化参数
-    init_learning_rate = 1e-4  # 初始学习率
-    total_epochs = 100  # 总共的epoch数目
-
-    # 生成epoch列表，用于计算每个epoch对应的学习率
-    epochs = np.arange(1, total_epochs + 1)
-
-    # 应用cosine_annealing函数计算每个epoch的学习率
-    lrs = [cosine_annealing(epoch, total_epochs, init_learning_rate) for epoch in epochs]
-
-    # 使用matplotlib绘制学习率随epoch变化的曲线
-    plt.figure(figsize=(10, 5))
-    plt.plot(epochs, lrs)
-    plt.title('Cosine Annealing Learning Rate Schedule')
-    plt.xlabel('Epochs')
-    plt.ylabel('Learning Rate')
-    # plt.yscale('log')  # 使用对数刻度以便更好地观察小数值的变化
-    plt.grid(True)
-    plt.show()
-
 
 
 """
-    下一步要做的事情就是首先获取rep NMPH的图的x和y的lim, 然后根据这个来定义一个 正宗的NMPH curve, 然后再根据这个NMPH curve和当前的x和y的 square of difference来计算目标函数值.
+    首先获取rep NMPH的图的x和y的lim, 然后根据这个来定义一个 正宗的NMPH curve, 然后再根据这个NMPH curve和当前的x和y的 square of difference来计算目标函数值.
     然后再根据这个目标函数值来进行优化。
     
     =
     
+"""
+
+
+"""
+对于 calculate_objective_and_plot_data 函数， 完全删除之前的额objective的定义，以及基于mean_noChange, std_noChange,mean_differentiation, std_differentiation, mean_integration, std_integration 的gradient 的定义。
+取而代之的是，根据 xlim_target = (min(x_coactivation), max(x_coactivation)) 以及 ylim_target = (min(y_integration), max(y_integration))
+来调用 new_poly = scaleTargetNMPH(xlim_target, ylim_target, plotAll=False)
+从而可以根据当前的 x_coactivation, y_integration 与 new_poly 的差值的平方和来计算目标函数值。
 """
