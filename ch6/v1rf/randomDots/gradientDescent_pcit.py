@@ -17,9 +17,9 @@ n = 40
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 100  # 优化迭代次数
+iterations = 1000  # 优化迭代次数
 # 定义学习率
-init_learning_rate = 1e-3
+init_learning_rate = 1e-2
 # 设置权重
 weights = {
     'mean_noChange': 2,
@@ -58,7 +58,7 @@ def pcit(x_coactivation, plotAll=False):
 
     # Adjusted points
     x_points = np.array([x1, x1_5, x2, x3, x4]) - 1.2
-    y_points = np.array([y1, y1_5, y2, y3, y4]) * 0.5
+    y_points = np.array([y1, y1_5, y2, y3, y4]) * 1
 
     # Piecewise linear function
     def piecewise_linear(x):
@@ -99,7 +99,6 @@ def calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix, plot
     # xlim_target = (min(x_coactivation), max(x_coactivation))
     # ylim_target = (min(y_integration), max(y_integration))
     # polynomial = scaleTargetNMPH(xlim_target, ylim_target, plotAll=plotAll, largerIntegrationDifferentiation=largerIntegrationDifferentiation)
-
 
     # 计算目标函数值
     # y_fit = polynomial(x_coactivation)
@@ -196,7 +195,7 @@ for curr_iter in tqdm(range(iterations)):
 plt.figure(figsize=(12, 12))
 
 plt.subplot(2, 2, 1)
-plt.scatter(points[:, 0], points[:, 1], c='blue', label='初始')
+plt.scatter(points[:, 0], points[:, 1], c='blue', label='initial')
 # annotate each dot
 for i in range(n):
     plt.annotate(f'{i}', (points[i, 0], points[i, 1]), fontsize=12, color='blue')
@@ -206,19 +205,19 @@ for i in range(n):
 # plt.legend()
 
 # plt.subplot(2, 2, 1)
-plt.scatter(best_points[:, 0], best_points[:, 1], c='red', label='最终')
+plt.scatter(best_points[:, 0], best_points[:, 1], c='red', label='final')
 # annotate each dot
 for i in range(n):
     plt.annotate(f'{i}', (best_points[i, 0], best_points[i, 1]), fontsize=12, color='red')
-plt.title("初始位置-最终位置")
+plt.title("initial position - final position")
 plt.xlabel("X")
 plt.ylabel("Y")
 plt.legend()
 
 # 绘制初始和最终的目标函数散点图
 plt.subplot(2, 2, 3)
-plt.scatter(initial_x, initial_y, c='blue', label='初始')
-plt.title("初始目标函数散点图")
+plt.scatter(initial_x, initial_y, c='blue', label='initial')
+plt.title("initial objective function scatter plot")
 plt.xlabel("co-activation: -m1")
 plt.ylabel("integration: -(m2 - m1)")
 plt.legend()
@@ -226,8 +225,8 @@ plt.legend()
 plt.axhline(y=0, color='gray', linestyle='--')
 
 plt.subplot(2, 2, 4)
-plt.scatter(best_x, best_y, c='red', label='最终')
-plt.title("最终目标函数散点图")
+plt.scatter(best_x, best_y, c='red', label='final')
+plt.title("final objective function scatter plot")
 plt.xlabel("co-activation: -m1")
 plt.ylabel("integration: -(m2 - m1)")
 plt.legend()
@@ -239,10 +238,10 @@ plt.show()
 
 # 绘制损失曲线
 plt.figure()
-plt.plot(objectives, label='目标函数值')
-plt.title("损失曲线")
-plt.xlabel("迭代次数")
-plt.ylabel("目标函数值")
+plt.plot(objectives, label='target objective function value')
+plt.title("loss curve")
+plt.xlabel("iteration")
+plt.ylabel("objective function value")
 plt.legend()
 plt.show()
 
