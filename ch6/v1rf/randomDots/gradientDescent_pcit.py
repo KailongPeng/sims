@@ -2,12 +2,14 @@ import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 from scipy.stats import ttest_1samp
 from tqdm import tqdm
+import numpy as np
+import os
+
+os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
 
 # 设置 matplotlib 的默认字体为黑体
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
-
-import numpy as np
 
 # 设置随机种子
 np.random.seed(42)  # 42是种子值，你可以选择任何整数作为种子值
@@ -17,18 +19,11 @@ n = 40
 # 定义控制点随机移动距离的缩放因子
 lambda_factor = 0.01  # 示例缩放因子
 # 定义优化迭代的次数
-iterations = 1000  # 优化迭代次数
+iterations = 100  # 优化迭代次数
 # 定义学习率
 init_learning_rate = 1e-2
+
 # 设置权重
-weights = {
-    'mean_noChange': 2,
-    'std_noChange': 0.1,
-    'mean_differentiation': 1,
-    'std_differentiation': 0.1,
-    'mean_integration': 1,
-    'std_integration': 0.1
-}
 plotAll = False
 largerIntegrationDifferentiation = 1.3
 # 在0到1的二维平面上随机均匀分布n个点
@@ -53,8 +48,15 @@ def pcit(x_coactivation, plotAll=False):
     x1, y1 = 0, 0
     x1_5, y1_5 = 0.2, 0
     x2, y2 = 0.33, -0.6
-    x3, y3 = 0.6, 0.1
-    x4, y4 = 1, 0.4
+    x3, y3 = 0.7, 0.1
+    x4, y4 = 1, 0.7
+
+    # x1, y1 = 0, 0
+    # x1_5, y1_5 = 0.2, 0
+    # x2, y2 = 0.33, -0.6
+    # x3, y3 = 0.6, 0.1
+    # # x4, y4 = 1, 0.4
+    # x4, y4 = 1, 1
 
     # Adjusted points
     x_points = np.array([x1, x1_5, x2, x3, x4]) - 1.2
@@ -168,6 +170,7 @@ def cosine_annealing(epoch, total_epochs, initial_lr):
     return initial_lr * 0.5 * (1 + np.cos(np.pi * epoch / total_epochs))
 
 
+best_points_history = [best_points.copy()]  # 存储每次迭代的最佳点集
 # 进行迭代优化
 for curr_iter in tqdm(range(iterations)):
     t += 1
@@ -185,11 +188,17 @@ for curr_iter in tqdm(range(iterations)):
     (new_objective, new_x, new_y) = calculate_objective_and_plot_data(initial_dist_matrix, new_dist_matrix)  # 计算新的目标函数值和散点图数据
 
     best_points = new_points.copy()
+    best_points_history.append(best_points.copy())
     best_objective = new_objective
     best_x = new_x
     best_y = new_y
 
     objectives.append(new_objective)
+
+# save best_points_history
+os.makedirs('./result', exist_ok=True)
+np.save('./result/best_points_history.npy', best_points_history)
+
 
 # 绘制初始和最终的点集位置
 plt.figure(figsize=(12, 12))
