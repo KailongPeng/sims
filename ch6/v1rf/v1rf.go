@@ -62,10 +62,10 @@ var ParamSets = params.Sets{
 					"Prjn.Learn.Norm.On":      "false",
 					"Prjn.Learn.Momentum.On":  "false",
 					"Prjn.Learn.WtBal.On":     "false",
-					"Prjn.Learn.XCal.MLrn":    "0", // pure hebb
-					"Prjn.Learn.XCal.SetLLrn": "true",
-					"Prjn.Learn.XCal.LLrn":    "1",
-					"Prjn.Learn.WtSig.Gain":   "1", // key: more graded weights
+					"Prjn.Learn.XCal.MLrn":    "0",    // pure hebb. MLrn: 基于中等时间尺度浮动平均阈值的乘数，用于产生错误驱动学习。当使用错误驱动学习时，这个值通常是1；当使用纯Hebbian学习时，这个值是0。长期浮动平均阈值由接收单元提供。
+					"Prjn.Learn.XCal.SetLLrn": "true", // SetLLrn: 如果为真，设置一个固定的AvgLLrn权重因子，该因子决定了学习中使用的长期浮动平均阈值（即BCM，Hebbian）部分的大小。这在设置完全Hebbian学习连接时很有用，例如通过设置MLrn = 0和LLrn = 1。如果为假，则使用接收单元的AvgLLrn因子，该因子根据其总体活动动态调节长期组分的大小。
+					"Prjn.Learn.XCal.LLrn":    "1",    // LLrn: 固定的l_lrn 权重因子，用于确定学习中使用的长期浮动平均阈值部分的大小。
+					"Prjn.Learn.WtSig.Gain":   "1",    // key: more graded weights
 				}},
 			{Sel: "Layer", Desc: "needs some special inhibition and learning params",
 				Params: params.Params{
