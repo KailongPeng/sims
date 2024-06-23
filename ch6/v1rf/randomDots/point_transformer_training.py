@@ -28,27 +28,17 @@ class PointTransformer(nn.Module):
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+    # input shape: (40, 2)
+    # fc1: (40, 2) -> (40, 50)
+    # layer2 shape: (40, 50)
+    # fc2: (40, 50) -> (40, 20)
+    # layer3 shape: (40, 20)
+    # fc3: (40, 20) -> (40, 2)
+    # output shape: (40, 2)
 
-# # Early stopping class
-# class EarlyStopping:
-#     def __init__(self, patience=10, min_delta=0):
-#         self.patience = patience
-#         self.min_delta = min_delta
-#         self.best_loss = None
-#         self.counter = 0
-#
-#     def __call__(self, loss):
-#         if self.best_loss is None:
-#             self.best_loss = loss
-#             return False
-#
-#         if loss < self.best_loss - self.min_delta:
-#             self.best_loss = loss
-#             self.counter = 0
-#         else:
-#             self.counter += 1
-#
-#         return self.counter >= self.patience
+    # 放弃记录所有的weight changes和activations，只记录每一个最后一个epoch完成后的weight of the third layer (fc3) 和 activations of layer 3 (shape: (40, 20) and output layer (shape: (40, 2))
+
+
 
 # Function to train the model and record weights and activations
 def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000):
@@ -66,16 +56,15 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
     activations = []
 
     losses = {}
-    for t in range(1, best_points_history.shape[0]):
-        # early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
+    for curr_timepoint in range(1, best_points_history.shape[0]):
         for epoch in tqdm(range(max_epochs)):
             optimizer.zero_grad()
             outputs = model(initial_points)
-            target = best_points_history[t]
+            target = best_points_history[curr_timepoint]
             loss = criterion(outputs, target)
             if epoch == 0:
-                losses[t] = []
-            losses[t].append(loss.item())
+                losses[curr_timepoint] = []
+            losses[curr_timepoint].append(loss.item())
             loss.backward()
             optimizer.step()
             scheduler.step()
@@ -95,22 +84,17 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
                 plt.figure(figsize=(10, 5))
                 plt.scatter(outputs[:, 0].detach().numpy(), outputs[:, 1].detach().numpy(), color='blue', label='Predicted Points')
                 plt.scatter(target[:, 0].detach().numpy(), target[:, 1].detach().numpy(), color='red', label='Target Points')
-                plt.title(f'Time Point {t}, Epoch {epoch}')
+                plt.title(f'Time Point {curr_timepoint}, Epoch {epoch}')
                 plt.legend()
                 plt.show()
 
-            # # Check early stopping
-            # if early_stopping(loss.item()):
-            #     print(f"Early stopping at epoch {epoch} for time point {t}")
-            #     break
-
     # Plot the loss curves
-    for t in range(1, best_points_history.shape[0]):
+    for curr_timepoint in range(1, best_points_history.shape[0]):
         plt.figure(figsize=(10, 5))
-        plt.plot(losses[t], label=f'Time Point {t}')
+        plt.plot(losses[curr_timepoint], label=f'Time Point {curr_timepoint}')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.title(f'Loss Curve for Time Point {t}')
+        plt.title(f'Loss Curve for Time Point {curr_timepoint}')
         plt.legend()
         plt.show()
 
@@ -124,3 +108,4 @@ weight_changes = np.array(weight_changes)
 activations = np.array(activations)
 print(weight_changes.shape)
 print(activations.shape)
+
