@@ -65,10 +65,10 @@ class EarlyStopping:
 # Function to train the model and record weights and activations
 def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000):
     initial_points = best_points_history[0]  # shape: (40, 2)
-    best_points_history = torch.tensor(best_points_history, dtype=torch.float32)
-    initial_points = torch.tensor(initial_points, dtype=torch.float32)
+    best_points_history = torch.tensor(best_points_history, dtype=torch.float64)
+    initial_points = torch.tensor(initial_points, dtype=torch.float64)
 
-    model = PointTransformer()
+    model = PointTransformer().double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs, eta_min=0)
@@ -160,7 +160,3 @@ print(f"final_activations_output.shape={final_activations_output.shape}")
 np.save('./result/final_weight.npy', final_weight)
 np.save('./result/final_activations_layer3.npy', final_activations_layer3)
 np.save('./result/final_activations_output.npy', final_activations_output)
-# End of point_transformer_training.py
-
-
-# 修改这里的变量的种类，比如从float32到更精确的种类，使得min_delta=1e-30更加可行。
