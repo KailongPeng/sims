@@ -3,10 +3,18 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import os
 
-os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
+if 'gpfs/milgram' in os.getcwd():
+    os.chdir('"/gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots"')
+else:
+    os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
+
+print(f"Current working directory: {os.getcwd()}")
+# torch version
+print(f"PyTorch version: {torch.__version__}")
 
 # Define the neural network architecture
 class PointTransformer(nn.Module):
@@ -55,13 +63,20 @@ def train_model(best_points_history, num_epochs=10):
                 activation = torch.relu(model.fc2(torch.relu(model.fc1(initial_points)))).numpy()
             activations.append(activation)
 
-            # 在这里加入代码以可视化训练后的输出的点以及目标点，观察训练效果
+            # Visualize training outputs and targets
+            if epoch % (num_epochs // 5) == 0:  # Plot every few epochs
+                plt.figure(figsize=(10, 5))
+                plt.scatter(outputs[:, 0].detach().numpy(), outputs[:, 1].detach().numpy(), color='blue', label='Predicted Points')
+                plt.scatter(target[:, 0].detach().numpy(), target[:, 1].detach().numpy(), color='red', label='Target Points')
+                plt.title(f'Time Point {t}, Epoch {epoch}')
+                plt.legend()
+                plt.show()
 
     return model, weight_changes, activations
 
 
 best_points_history = np.asarray(np.load('./result/best_points_history.npy'))  # (np.array(best_points_history).shape=(101, 40, 2))。
-best_points_history = best_points_history[0: 3]
+best_points_history = best_points_history[0:3]
 model, weight_changes, activations = train_model(best_points_history, num_epochs=10)
 
 weight_changes = np.array(weight_changes)
