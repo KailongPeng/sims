@@ -39,6 +39,26 @@ class PointTransformer(nn.Module):
     # 放弃记录所有的weight changes和activations，只记录每一个最后一个epoch完成后的weight of the third layer (fc3) 和 activations of layer 3 (shape: (40, 20) and output layer (shape: (40, 2))
 
 
+# Early stopping class
+class EarlyStopping:
+    def __init__(self, patience=10, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.best_loss = None
+        self.counter = 0
+
+    def __call__(self, loss):
+        if self.best_loss is None:
+            self.best_loss = loss
+            return False
+
+        if loss < self.best_loss - self.min_delta:
+            self.best_loss = loss
+            self.counter = 0
+        else:
+            self.counter += 1
+
+        return self.counter >= self.patience
 
 # Function to train the model and record weights and activations
 def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000):
@@ -57,6 +77,7 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
 
     losses = {}
     for curr_timepoint in range(1, best_points_history.shape[0]):
+        early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
         for epoch in tqdm(range(max_epochs)):
             optimizer.zero_grad()
             outputs = model(initial_points)
@@ -87,6 +108,11 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
                 plt.title(f'Time Point {curr_timepoint}, Epoch {epoch}')
                 plt.legend()
                 plt.show()
+
+            # Check early stopping
+            if early_stopping(loss.item()):
+                print(f"Early stopping at epoch {epoch} for time point {curr_timepoint}")
+                break
 
     # Plot the loss curves
     for curr_timepoint in range(1, best_points_history.shape[0]):
