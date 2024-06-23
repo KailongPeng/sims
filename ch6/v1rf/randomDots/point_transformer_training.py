@@ -148,7 +148,7 @@ else:
     best_points_history = best_points_history
     max_epochs = 10000
 model, final_weight, final_activations_layer3, final_activations_output = train_model(
-    best_points_history, patience=100, min_delta=1e-20, max_epochs=max_epochs)
+    best_points_history, patience=100, min_delta=1e-30, max_epochs=max_epochs)
 
 final_weight = np.array(final_weight)
 final_activations_layer3 = np.array(final_activations_layer3)
@@ -161,3 +161,6 @@ np.save('./result/final_weight.npy', final_weight)
 np.save('./result/final_activations_layer3.npy', final_activations_layer3)
 np.save('./result/final_activations_output.npy', final_activations_output)
 # End of point_transformer_training.py
+
+
+# 修改这里的变量的种类，比如从float32到更精确的种类，使得min_delta=1e-30更加可行。
