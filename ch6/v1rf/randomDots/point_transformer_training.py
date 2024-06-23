@@ -36,7 +36,7 @@ class PointTransformer(nn.Module):
     # fc3: (40, 20) -> (40, 2)
     # output shape: (40, 2)
 
-    # 放弃记录所有的weight changes和activations，只记录每一个最后一个epoch完成后的weight of the third layer (fc3) 和 activations of layer 3 (shape: (40, 20) and output layer (shape: (40, 2))
+    # 放弃记录所有的weight changes和activations，只记录每一个curr_timepoint的最后一个epoch完成后的weight of the third layer (fc3: (40, 20) -> (40, 2)) 和 activations of layer 3 (shape: (40, 20) and output layer (shape: (40, 2))
 
 
 # Early stopping class
