@@ -5,6 +5,16 @@ import torch.optim as optim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
+import random
+
+# Set random seeds for reproducibility
+seed = 42
+np.random.seed(seed)
+torch.manual_seed(seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(seed)
+random.seed(seed)
+
 testMode = False
 
 if 'gpfs/milgram' in os.getcwd():
@@ -43,7 +53,7 @@ class PointTransformer(nn.Module):
 
 # Early stopping class
 class EarlyStopping:
-    def __init__(self, patience=10, min_delta=0):
+    def __init__(self, patience=None, min_delta=None):
         self.patience = patience
         self.min_delta = min_delta
         self.best_loss = None
@@ -63,7 +73,7 @@ class EarlyStopping:
         return self.counter >= self.patience
 
 # Function to train the model and record weights and activations
-def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000):
+def train_model(best_points_history, patience=None, min_delta=None, max_epochs=None):
     initial_points = best_points_history[0]  # shape: (40, 2)
     best_points_history = torch.tensor(best_points_history, dtype=torch.float64)
     initial_points = torch.tensor(initial_points, dtype=torch.float64)
@@ -146,7 +156,7 @@ else:
     # best_points_history = best_points_history[0:5]
     # max_epochs = 100
     best_points_history = best_points_history
-    max_epochs = 10000
+    max_epochs = 100000
 model, final_weight, final_activations_layer3, final_activations_output = train_model(
     best_points_history, patience=100, min_delta=1e-30, max_epochs=max_epochs)
 
