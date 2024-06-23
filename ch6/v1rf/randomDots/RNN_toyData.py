@@ -281,7 +281,6 @@ def trainWith_crossEntropyLoss(threeD_input=False, remove_boundary_dots=False):
 
 def train_multiple_dotsNeighbotSingleBatch(
         threeD_input=None,
-        remove_boundary_dots=False,
         integrationForceScale=None, # the relative force scale between integration and differentiation.
         total_epochs=None,
         range_loss_rep_shrink=None,
@@ -350,63 +349,6 @@ def train_multiple_dotsNeighbotSingleBatch(
         def __getitem__(self, idx):
             return self.data[idx], self.labels[idx]
 
-    # def prepare_data_rnn(dataset, sequence_length=None):
-    #     """
-    #     Prepares the data for RNN input.
-    #
-    #     Parameters:
-    #     - dataset: numpy array with shape (N, 2) where N is the number of points and 2 is the number of coordinates.
-    #     - sequence_length: Desired sequence length for the RNN input.
-    #
-    #     Returns:
-    #     - rnn_input: numpy array with shape (N, sequence_length, 2).
-    #     """
-    #     num_points, num_coordinates = dataset.shape
-    #
-    #     # Repeat each point sequence_length times
-    #     rnn_input = np.tile(dataset[:, np.newaxis, :], (1, sequence_length, 1))
-    #     # axis 0: number of points, axis 1: sequence length, axis 2: number of coordinates
-    #
-    #     return torch.tensor(rnn_input, dtype=torch.float32)
-
-    # Define neural network architecture
-    # Define the Vanilla RNN model
-    # class VanillaRNN(nn.Module):
-    #     def __init__(self, input_size, hidden_size, output_size):
-    #         super(VanillaRNN, self).__init__()
-    #
-    #         self.hidden_size = hidden_size
-    #
-    #         # RNN layer
-    #         self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-    #
-    #         # Fully connected layer
-    #         self.fc = nn.Linear(hidden_size, output_size)
-    #
-    #         self.input_layer = self.rnn
-    #         self.hidden_layer1 = self.rnn
-    #         self.hidden_layer2 = self.fc  # self.hidden_layer2 is the thing that is used in synaptic NMPH analysis.
-    #
-    #     def forward(self, x):
-    #         # preparing data for RNN input
-    #         num_timepoints = num_layers
-    #         x = prepare_data_rnn(
-    #             x,
-    #             sequence_length=num_timepoints)
-    #
-    #         # RNN forward pass
-    #         out, _ = self.rnn(x)
-    #
-    #         # Take the output from the last time step
-    #         out = out[:, -1, :]
-    #         self.penultimate_layer_activation = out.detach().numpy()
-    #
-    #         # Fully connected layer
-    #         out = self.fc(out)
-    #         self.final_layer_activation = out.detach().numpy()
-    #
-    #         return out
-
     def local_aggregation_vecterScale_loss(
             embeddings_center, close_neighbors, background_neighbors,
             close_neighbors_moved, background_neighbors_moved,
@@ -422,17 +364,6 @@ def train_multiple_dotsNeighbotSingleBatch(
 
         return loss
 
-
-    # # Define toy dataset shaped [1000, 2]
-    # if threeD_input:
-    #     points_data, labels_data = generate_3d_scatter_plot(separator=1 / 2,
-    #                                                         display_plot=True)  # separator should be 1/3 or 1/2
-    # else:
-    #     points_data, labels_data = generate_2d_scatter_plot(display_plot=True, remove_boundary_dots=remove_boundary_dots)
-
-
-    # Split the data into training and testing sets (1000 points each)
-
     os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
 
     points_data = np.asarray(
@@ -440,37 +371,12 @@ def train_multiple_dotsNeighbotSingleBatch(
 
     train_data, test_data = points_data[0, :, :], points_data[1, :, :]
 
-    train_labels, test_labels = labels_data[:1000], labels_data[1000:]
+    # train_labels, test_labels = labels_data[:1000], labels_data[1000:]
 
     dataset = ToyDataset(train_data, train_labels)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Define the neural network model
-    # class SimpleFeedforwardNN(nn.Module):
-    #     def __init__(self):
-    #         super(SimpleFeedforwardNN, self).__init__()
-    #         if threeD_input:
-    #             self.input_layer = nn.Linear(3, 64)  # 3D input layer
-    #         else:
-    #             self.input_layer = nn.Linear(2, 64)  # 2D input layer
-    #
-    #         self.hidden_layer1 = nn.Linear(64, 32)  # First hidden layer
-    #         self.hidden_layer2 = nn.Linear(32, 2)  # Second-to-last layer is 2D
-    #
-    #         if threeD_input:
-    #             self.output_layer = nn.Linear(2, 27)  # Output layer, classifying into 27 categories
-    #         else:
-    #             self.output_layer = nn.Linear(2, 9)  # Output layer, classifying into 9 categories
-    #
-    #     def forward(self, x):
-    #         x = torch.relu(self.input_layer(x)) # First layer activation
-    #         x = torch.relu(self.hidden_layer1(x)) # Second layer activation
-    #
-    #         self.penultimate_layer_activation = self.hidden_layer2(x)
-    #
-    #         x = torch.relu(self.hidden_layer2(x)) # Third layer activation
-    #         x = self.output_layer(x) # Output layer activation
-    #         return x
     class SimpleFeedforwardNN(nn.Module):
         def __init__(self, threeD_input=False, use_batch_norm=False, use_layer_norm=False,
                      init_zero_weights=False,
@@ -516,20 +422,6 @@ def train_multiple_dotsNeighbotSingleBatch(
     net = SimpleFeedforwardNN(threeD_input=threeD_input,
                               init_zero_weights=False,
                               use_batch_norm=False, use_layer_norm=False)  # It was found that layer norm is much better than batch norm.
-    # net = SimpleRNNWithActivations(input_size=2, hidden_size=5, output_size=2)
-
-    # input_dim = 2
-    # hidden_dim = hidden_dim  # 20
-    # output_dim = 2
-    # num_layers = num_layers  # 5
-    # net = FlexibleTransformNet(input_dim, hidden_dim, output_dim, num_layers)
-
-    # # Instantiate the model
-    # input_size = 2  # Size of input features
-    # hidden_size = hidden_dim  # Size of hidden state
-    # output_size = 2  # Size of output
-    # net = VanillaRNN(input_size, hidden_size, output_size)
-
 
     learning_rate = 0.05 * 4
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, weight_decay=0.001)
@@ -606,8 +498,6 @@ def train_multiple_dotsNeighbotSingleBatch(
 
                 embedding_centerPoint = net(batch.float())  # embeddings of the current batch, note that batch_size=1, so this is a single center point.
                 embeddings_all = net(train_data)  # embeddings of all points
-
-
 
                 # Get close and background neighbors
                 if iteration == 0:
