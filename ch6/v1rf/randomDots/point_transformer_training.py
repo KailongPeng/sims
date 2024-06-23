@@ -5,7 +5,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
-testMode = False
+testMode = True
 
 if 'gpfs/milgram' in os.getcwd():
     os.chdir("/gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots")
