@@ -78,7 +78,7 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
     final_activations_output = []
 
     losses = {}
-    for curr_timepoint in tqdm(range(1, best_points_history.shape[0])):
+    for curr_timepoint in tqdm(range(0, best_points_history.shape[0])):
         early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
         for epoch in range(max_epochs):
             optimizer.zero_grad()
@@ -157,6 +157,14 @@ print(f"final_weight.shape={final_weight.shape}")
 print(f"final_activations_layer3.shape={final_activations_layer3.shape}")
 print(f"final_activations_output.shape={final_activations_output.shape}")
 
-np.save('./result/final_weight.npy', final_weight)
-np.save('./result/final_activations_layer3.npy', final_activations_layer3)
-np.save('./result/final_activations_output.npy', final_activations_output)
+# tag for time
+import time
+time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+np.save(f'./result/final_weight_{time}.npy', final_weight)
+np.save(f'./result/final_activations_layer3_{time}.npy', final_activations_layer3)
+np.save(f'./result/final_activations_output_{time}.npy', final_activations_output)
+print(f"Results saved with time tag: {time}")
+
+# np.save('./result/final_weight.npy', final_weight)
+# np.save('./result/final_activations_layer3.npy', final_activations_layer3)
+# np.save('./result/final_activations_output.npy', final_activations_output)
