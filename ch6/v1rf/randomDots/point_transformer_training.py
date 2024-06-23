@@ -78,9 +78,9 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
     final_activations_output = []
 
     losses = {}
-    for curr_timepoint in range(1, best_points_history.shape[0]):
+    for curr_timepoint in tqdm(range(1, best_points_history.shape[0])):
         early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
-        for epoch in tqdm(range(max_epochs)):
+        for epoch in range(max_epochs):
             optimizer.zero_grad()
             outputs = model(initial_points)
             target = best_points_history[curr_timepoint]
