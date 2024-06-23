@@ -5,7 +5,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
-testMode = True
+testMode = False
 
 if 'gpfs/milgram' in os.getcwd():
     os.chdir("/gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots")
@@ -143,10 +143,10 @@ if testMode:
     best_points_history = best_points_history[0:5]
     max_epochs = 100
 else:
-    # best_points_history = best_points_history[0:5]
-    # max_epochs = 100
-    best_points_history = best_points_history
-    max_epochs = 10000
+    best_points_history = best_points_history[0:5]
+    max_epochs = 100
+    # best_points_history = best_points_history
+    # max_epochs = 10000
 model, final_weight, final_activations_layer3, final_activations_output = train_model(
     best_points_history, patience=100, min_delta=1e-20, max_epochs=max_epochs)
 
