@@ -79,115 +79,6 @@ def bar(means=None, upper=None, lower=None, ROINames=None, title=None, xLabel=""
     else:
         _ = plt.close()
 
-# Function to generate 3D scatter plot and return data
-def generate_3d_scatter_plot(separator=1 / 3, display_plot=False):
-    np.random.seed(42)
-    points = np.random.rand(2000, 3)  # Increase the number of points to 2000
-
-    # Define the boundaries for region division based on the separator value
-    boundaries = [separator, 2 * separator]
-
-    # Assign labels to each point based on region
-    labels_x = np.digitize(points[:, 0], boundaries)
-    labels_y = np.digitize(points[:, 1], boundaries)
-    labels_z = np.digitize(points[:, 2], boundaries)
-
-    # Combine the indices of the regions in each dimension to get a unique label for each point
-    if separator == 1 / 3:
-        labels = labels_x + 3 * labels_y + 9 * labels_z
-    elif separator == 1 / 2:
-        labels = labels_x + 2 * labels_y + 4 * labels_z
-    else:
-        raise Exception("separator should be 1/3 or 1/2")
-    if display_plot:
-        # Create a randomized rainbow colormap
-        rainbow_colormap = ListedColormap(np.random.rand(256, 3))
-
-        # Create a 3D scatter plot
-        fig = plt.figure(figsize=(8, 8))
-        ax = fig.add_subplot(111, projection='3d')
-
-        # Scatter plot with colored points based on labels using the rainbow colormap
-        # scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=labels, cmap=rainbow_colormap)
-        scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=labels, cmap='rainbow')
-
-        # Add colorbar to show label-color mapping
-        colorbar = plt.colorbar(scatter, ax=ax, orientation='vertical')
-        colorbar.set_label('Label')
-
-        # Set plot labels
-        ax.set_xlabel('X-axis')
-        ax.set_ylabel('Y-axis')
-        ax.set_zlabel('Z-axis')
-        ax.set_title('3D Scatter Plot with Region Labels')
-
-        # Display the plot
-        plt.show()
-
-    # Return data and figure
-    return points, labels
-
-
-def generate_2d_scatter_plot(display_plot=True, remove_boundary_dots=False):
-    # Example usage:
-    # points_2d, labels_2d = generate_2d_scatter_plot(display_plot=True)
-    np.random.seed(42)
-    points = np.random.rand(2650, 2)  # Generate 2D points
-
-    # Define the boundaries for region division
-    boundaries = [1 / 3, 2 / 3]
-
-    # Set the range for points to be removed around each boundary
-    boundary_range = 0.03
-
-    # Function to create a mask for points within the specified range around a boundary
-    def create_boundary_mask(coord, boundary, boundary_range):
-        return np.logical_or(coord < boundary - boundary_range, coord > boundary + boundary_range)
-
-    if remove_boundary_dots:
-        # Create masks for each boundary
-        mask_x_lower = ~ create_boundary_mask(points[:, 0], boundaries[0], boundary_range)
-        mask_x_upper = ~ create_boundary_mask(points[:, 0], boundaries[1], boundary_range)
-        mask_y_lower = ~ create_boundary_mask(points[:, 1], boundaries[0], boundary_range)
-        mask_y_upper = ~ create_boundary_mask(points[:, 1], boundaries[1], boundary_range)
-
-        # Combine masks to get a mask for points within the specified range around any boundary
-        mask_within_range = np.logical_or.reduce([mask_x_lower, mask_x_upper, mask_y_lower, mask_y_upper])
-
-        # Apply the mask to remove points within the specified range around any boundary
-        points_filtered = points[~mask_within_range]
-    else:
-        points_filtered = points
-
-    # Assign labels to each point based on region after filtering
-    labels_x = np.digitize(points_filtered[:, 0], boundaries)
-    labels_y = np.digitize(points_filtered[:, 1], boundaries)
-    labels = labels_x + 3 * labels_y
-
-    if display_plot:
-        # Create a randomized rainbow colormap
-        rainbow_colormap = ListedColormap(np.random.rand(256, 3))
-
-        # Create a 2D scatter plot with filtered points
-        plt.figure(figsize=(8, 8))
-        plt.scatter(points_filtered[:, 0], points_filtered[:, 1], c=labels, cmap='rainbow')
-
-        # Add colorbar to show label-color mapping
-        colorbar = plt.colorbar(orientation='vertical')
-        colorbar.set_label('Label')
-
-        # Set plot labels
-        plt.xlabel('X-axis')
-        plt.ylabel('Y-axis')
-        plt.title('2D Scatter Plot with Region Labels (Points Removed within Range)')
-
-        # Display the plot
-        plt.show()
-
-    # Return data
-    return points_filtered, labels
-
-
 
 def trainWith_crossEntropyLoss(threeD_input=False, remove_boundary_dots=False):
 
@@ -392,12 +283,10 @@ def train_multiple_dotsNeighbotSingleBatch(
         threeD_input=None,
         remove_boundary_dots=False,
         integrationForceScale=None, # the relative force scale between integration and differentiation.
-        total_epochs=50,
+        total_epochs=None,
         range_loss_rep_shrink=None,
         num_iterations_per_batch=None,
         plot_neighborhood=False,  # whether to plot the neighborhood of each point in latent space or not):
-        num_close=None,
-        num_background=None,
         hidden_dim=None,
         num_layers=None,
         loss_type=None,
@@ -445,28 +334,6 @@ def train_multiple_dotsNeighbotSingleBatch(
 
     if integrationForceScale is None:
         integrationForceScale = 1
-    # (num_close, num_background) = (5, 5)  # num_close: number of close neighbors, num_background: number of background neighbors
-    """ (num_close, num_background) = (?, ?)  # num_close: number of close neighbors, num_background: number of background neighbors
-        result: 
-        (0, 1) gets normal result,
-        (1, 1) gets normal result,
-        (2, 2) gets normal result,
-        (5, 5) gets normal result,
-        (10, 10) gets normal result,
-        (15, 15) gets collapsed result, 
-        (20, 20) gets collapsed result
-        
-        (1, 20) gets normal result,        
-        (20, 1) gets collapsed result,
-        
-        conclusion:
-        1. the number of close neighbors and background neighbors should be small, otherwise the result will be collapsed.
-        2. whether the result collapses or not most likely depends on the number of close neighbors, not the number of background neighbors.
-        3. intuitively, this is determined by whether probabilistically speaking, the close neighbors of two neighboring center points overlap or not. If overlap, then the result will be collapsed.
-        4. it turns out that the close neighbors are not important, the background neighbors are important. This means that integration is not important while differentiation is important for representation learning.
-        5. one way to boost integration might be to increase the weight of close neighbor pulling force to enforce the formation of clusters.
-    """
-
     print(f"integrationForceScale={integrationForceScale}")
     print(f"number of close neighbors={num_close}, number of background neighbors={num_background}")
     # assert c + b + 1 <= batch_size, f"c + b + 1 should be less than or equal to {batch_size}"
@@ -483,89 +350,63 @@ def train_multiple_dotsNeighbotSingleBatch(
         def __getitem__(self, idx):
             return self.data[idx], self.labels[idx]
 
-    def prepare_data_rnn(dataset, sequence_length=None):
-        """
-        Prepares the data for RNN input.
-
-        Parameters:
-        - dataset: numpy array with shape (N, 2) where N is the number of points and 2 is the number of coordinates.
-        - sequence_length: Desired sequence length for the RNN input.
-
-        Returns:
-        - rnn_input: numpy array with shape (N, sequence_length, 2).
-        """
-        num_points, num_coordinates = dataset.shape
-
-        # Repeat each point sequence_length times
-        rnn_input = np.tile(dataset[:, np.newaxis, :], (1, sequence_length, 1))
-        # axis 0: number of points, axis 1: sequence length, axis 2: number of coordinates
-
-        return torch.tensor(rnn_input, dtype=torch.float32)
+    # def prepare_data_rnn(dataset, sequence_length=None):
+    #     """
+    #     Prepares the data for RNN input.
+    #
+    #     Parameters:
+    #     - dataset: numpy array with shape (N, 2) where N is the number of points and 2 is the number of coordinates.
+    #     - sequence_length: Desired sequence length for the RNN input.
+    #
+    #     Returns:
+    #     - rnn_input: numpy array with shape (N, sequence_length, 2).
+    #     """
+    #     num_points, num_coordinates = dataset.shape
+    #
+    #     # Repeat each point sequence_length times
+    #     rnn_input = np.tile(dataset[:, np.newaxis, :], (1, sequence_length, 1))
+    #     # axis 0: number of points, axis 1: sequence length, axis 2: number of coordinates
+    #
+    #     return torch.tensor(rnn_input, dtype=torch.float32)
 
     # Define neural network architecture
     # Define the Vanilla RNN model
-    class VanillaRNN(nn.Module):
-        def __init__(self, input_size, hidden_size, output_size):
-            super(VanillaRNN, self).__init__()
+    # class VanillaRNN(nn.Module):
+    #     def __init__(self, input_size, hidden_size, output_size):
+    #         super(VanillaRNN, self).__init__()
+    #
+    #         self.hidden_size = hidden_size
+    #
+    #         # RNN layer
+    #         self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+    #
+    #         # Fully connected layer
+    #         self.fc = nn.Linear(hidden_size, output_size)
+    #
+    #         self.input_layer = self.rnn
+    #         self.hidden_layer1 = self.rnn
+    #         self.hidden_layer2 = self.fc  # self.hidden_layer2 is the thing that is used in synaptic NMPH analysis.
+    #
+    #     def forward(self, x):
+    #         # preparing data for RNN input
+    #         num_timepoints = num_layers
+    #         x = prepare_data_rnn(
+    #             x,
+    #             sequence_length=num_timepoints)
+    #
+    #         # RNN forward pass
+    #         out, _ = self.rnn(x)
+    #
+    #         # Take the output from the last time step
+    #         out = out[:, -1, :]
+    #         self.penultimate_layer_activation = out.detach().numpy()
+    #
+    #         # Fully connected layer
+    #         out = self.fc(out)
+    #         self.final_layer_activation = out.detach().numpy()
+    #
+    #         return out
 
-            self.hidden_size = hidden_size
-
-            # RNN layer
-            self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-
-            # Fully connected layer
-            self.fc = nn.Linear(hidden_size, output_size)
-
-            self.input_layer = self.rnn
-            self.hidden_layer1 = self.rnn
-            self.hidden_layer2 = self.fc  # self.hidden_layer2 is the thing that is used in synaptic NMPH analysis.
-
-        def forward(self, x):
-            # preparing data for RNN input
-            num_timepoints = num_layers
-            x = prepare_data_rnn(
-                x,
-                sequence_length=num_timepoints)
-
-            # RNN forward pass
-            out, _ = self.rnn(x)
-
-            # Take the output from the last time step
-            out = out[:, -1, :]
-            self.penultimate_layer_activation = out.detach().numpy()
-
-            # Fully connected layer
-            out = self.fc(out)
-            self.final_layer_activation = out.detach().numpy()
-
-            return out
-
-    # Define local aggregation loss function
-    def local_aggregation_loss(
-            embeddings_center, close_neighbors, background_neighbors, integrationForceScale=None,
-    ):
-        # Compute pairwise distances between embeddings and close neighbors  # embeddings(50,2) close_neighbors(50,10,2) -> (50,10)
-        if close_neighbors.shape[1] == 0:
-            close_distances = torch.tensor(1e-6)
-        else:
-            expanded_embeddings = embeddings_center.unsqueeze(1).expand_as(
-                close_neighbors)  # Expand the embeddings to have the same dimensions as close_neighbors
-            close_distances = torch.mean(torch.norm(expanded_embeddings - close_neighbors,
-                                         dim=2))  # Calculate the Euclidean distance
-        if background_neighbors.shape[1] == 0:
-            background_distances = torch.tensor(1e-6)
-        else:
-            # Compute pairwise distances between embeddings and background neighbors
-            expanded_embeddings = embeddings_center.unsqueeze(1).expand_as(
-                background_neighbors)  # Expand the embeddings to have the same dimensions as background_neighbors
-            background_distances = torch.mean(torch.norm(expanded_embeddings - background_neighbors,
-                                              dim=2))  # Calculate the Euclidean distance
-
-        # Compute loss based on distances
-        # loss = torch.mean(torch.log(1 + torch.exp(integrationForceScale * close_distances - background_distances)))
-        loss = integrationForceScale * close_distances - background_distances
-
-        return loss
     def local_aggregation_vecterScale_loss(
             embeddings_center, close_neighbors, background_neighbors,
             close_neighbors_moved, background_neighbors_moved,
@@ -581,91 +422,100 @@ def train_multiple_dotsNeighbotSingleBatch(
 
         return loss
 
-    # Define range loss function
-    def range_loss(embeddings_all, initial_x_range_0, initial_y_range_0):
-        # current_x_range = torch.max(embeddings_all[:, 0]) - torch.min(embeddings_all[:, 0])
-        # current_y_range = torch.max(embeddings_all[:, 1]) - torch.min(embeddings_all[:, 1])
-        #
-        # loss = ((current_x_range - initial_x_range_0) ** 2 +
-        #         (current_y_range - initial_y_range_0) ** 2)
 
-        current_x_range = (torch.min(embeddings_all[:, 0]), torch.max(embeddings_all[:, 0]))
-        current_y_range = (torch.min(embeddings_all[:, 1]), torch.max(embeddings_all[:, 1]))
-
-        loss = torch.mean((current_x_range[0] - initial_x_range_0[0]) ** 2 +
-                          (current_x_range[1] - initial_x_range_0[1]) ** 2 +
-                          (current_y_range[0] - initial_y_range_0[0]) ** 2 +
-                          (current_y_range[1] - initial_y_range_0[1]) ** 2)
-
-        return loss
-
-    def get_close_and_background_neighbors(
-            center_embedding, all_embeddings, num_close=None, num_background=None,
-            move_factor=None
-    ):
-        """
-        Get close and background neighbors for each point in center_embeddings based on distances to all_embeddings.
-
-        Args:
-            center_embedding (torch.Tensor): Embeddings of center points.
-            all_embeddings (torch.Tensor): Embeddings of all points.
-            num_close (int): Number of close neighbors to retrieve for each center point.
-            num_background (int): Number of background neighbors to retrieve for each center point.
-
-        Returns:
-            torch.Tensor: Embeddings of close neighbors.
-            torch.Tensor: Embeddings of background neighbors.
-            torch.Tensor: Indices of center points.
-            torch.Tensor: Indices of close neighbors.
-            torch.Tensor: Indices of background neighbors.
-        """
-        # Compute pairwise distances between center_embeddings and all_embeddings
-        distances = torch.cdist(center_embedding, all_embeddings)  # (1, 2) (1000, 2) -> (1, 1000)  # This step is taking longer time.
-
-        # Get indices of k closest neighbors for each example
-        _, indices = torch.topk(distances, num_close + num_background + 1, largest=False)
-
-        center_indices = indices[:, 0]
-
-        # Remove self from list of neighbors
-        indices = indices[:, 1:]
-
-        # # Get indices of center points
-        # center_indices = torch.arange(center_embeddings.size(0)).view(-1, 1).expand(-1, num_close + num_background)
-
-        # Get embeddings of close neighbors
-        close_neighbors = all_embeddings[indices[:, :num_close]]
-        close_indices = indices[:, :num_close]
-        close_neighbors_moved = close_neighbors - move_factor * (close_neighbors - center_embedding)
-
-        # Get embeddings of background neighbors
-        background_neighbors = all_embeddings[indices[:, num_close:]]
-        background_indices = indices[:, num_close:]
-        background_neighbors_moved = background_neighbors + move_factor * (background_neighbors - center_embedding)
-
-        return (close_neighbors, background_neighbors, close_indices, background_indices, center_indices,
-                close_neighbors_moved, background_neighbors_moved)
-
-    # Define toy dataset shaped [1000, 2]
-    if threeD_input:
-        points_data, labels_data = generate_3d_scatter_plot(separator=1 / 2,
-                                                            display_plot=True)  # separator should be 1/3 or 1/2
-    else:
-        points_data, labels_data = generate_2d_scatter_plot(display_plot=True, remove_boundary_dots=remove_boundary_dots)
+    # # Define toy dataset shaped [1000, 2]
+    # if threeD_input:
+    #     points_data, labels_data = generate_3d_scatter_plot(separator=1 / 2,
+    #                                                         display_plot=True)  # separator should be 1/3 or 1/2
+    # else:
+    #     points_data, labels_data = generate_2d_scatter_plot(display_plot=True, remove_boundary_dots=remove_boundary_dots)
 
 
     # Split the data into training and testing sets (1000 points each)
-    train_data, test_data = points_data[:1000], points_data[1000:]
+
+    os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
+
+    points_data = np.asarray(
+        np.load('./result/best_points_history.npy'))  # (np.array(best_points_history).shape=(101, 40, 2))。
+
+    train_data, test_data = points_data[0, :, :], points_data[1, :, :]
 
     train_labels, test_labels = labels_data[:1000], labels_data[1000:]
 
     dataset = ToyDataset(train_data, train_labels)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
+    # Define the neural network model
+    # class SimpleFeedforwardNN(nn.Module):
+    #     def __init__(self):
+    #         super(SimpleFeedforwardNN, self).__init__()
+    #         if threeD_input:
+    #             self.input_layer = nn.Linear(3, 64)  # 3D input layer
+    #         else:
+    #             self.input_layer = nn.Linear(2, 64)  # 2D input layer
+    #
+    #         self.hidden_layer1 = nn.Linear(64, 32)  # First hidden layer
+    #         self.hidden_layer2 = nn.Linear(32, 2)  # Second-to-last layer is 2D
+    #
+    #         if threeD_input:
+    #             self.output_layer = nn.Linear(2, 27)  # Output layer, classifying into 27 categories
+    #         else:
+    #             self.output_layer = nn.Linear(2, 9)  # Output layer, classifying into 9 categories
+    #
+    #     def forward(self, x):
+    #         x = torch.relu(self.input_layer(x)) # First layer activation
+    #         x = torch.relu(self.hidden_layer1(x)) # Second layer activation
+    #
+    #         self.penultimate_layer_activation = self.hidden_layer2(x)
+    #
+    #         x = torch.relu(self.hidden_layer2(x)) # Third layer activation
+    #         x = self.output_layer(x) # Output layer activation
+    #         return x
+    class SimpleFeedforwardNN(nn.Module):
+        def __init__(self, threeD_input=False, use_batch_norm=False, use_layer_norm=False,
+                     init_zero_weights=False,
+                     hidden_dim=64):
+            super(SimpleFeedforwardNN, self).__init__()
+            self.use_batch_norm = use_batch_norm
+            self.use_layer_norm = use_layer_norm
+
+            if threeD_input:
+                self.input_layer = nn.Linear(3, hidden_dim)
+            else:
+                self.input_layer = nn.Linear(2, hidden_dim)  # first layer weight
+            if init_zero_weights:
+                init.zeros_(self.input_layer.weight)  # Initialize input layer weights to zero
+                init.zeros_(self.input_layer.bias)  # Initialize input layer biases to zero
+
+            self.hidden_layer1 = nn.Linear(hidden_dim, 2)  # Single hidden layer with 2 output neurons
+            if init_zero_weights:
+                init.zeros_(self.hidden_layer1.weight)  # Initialize hidden layer weights to zero
+                init.zeros_(self.hidden_layer1.bias)  # Initialize hidden layer biases to zero
+            self.hidden_layer2 = self.hidden_layer1
+            if self.use_batch_norm:
+                self.batch_norm1 = nn.BatchNorm1d(hidden_dim)
+            elif self.use_layer_norm:
+                self.layer_norm1 = nn.LayerNorm(hidden_dim)
+
+        def forward(self, x):
+            # x = (50,2)  input
+            x = torch.relu(self.input_layer(x))  # x = (50,64)  first layer activation
+            if self.use_batch_norm:
+                x = self.batch_norm1(x)
+            elif self.use_layer_norm:
+                x = self.layer_norm1(x)
+
+            self.penultimate_layer_activation = x.detach().numpy()
+            x = self.hidden_layer1(x)  # x = (50,2) final layer activation
+            x = nn.functional.softmax(x, dim=1)  # Apply softmax activation
+            self.final_layer_activation = x.detach().numpy()
+            self.hidden_layer2 = self.hidden_layer1
+            return x
+
     # Define neural network and optimizer
-    # net = SimpleFeedforwardNN(threeD_input=threeD_input,
-    #                           init_zero_weights=False,
-    #                           use_batch_norm=False, use_layer_norm=False)  # It was found that layer norm is much better than batch norm.
+    net = SimpleFeedforwardNN(threeD_input=threeD_input,
+                              init_zero_weights=False,
+                              use_batch_norm=False, use_layer_norm=False)  # It was found that layer norm is much better than batch norm.
     # net = SimpleRNNWithActivations(input_size=2, hidden_size=5, output_size=2)
 
     # input_dim = 2
@@ -674,11 +524,11 @@ def train_multiple_dotsNeighbotSingleBatch(
     # num_layers = num_layers  # 5
     # net = FlexibleTransformNet(input_dim, hidden_dim, output_dim, num_layers)
 
-    # Instantiate the model
-    input_size = 2  # Size of input features
-    hidden_size = hidden_dim  # Size of hidden state
-    output_size = 2  # Size of output
-    net = VanillaRNN(input_size, hidden_size, output_size)
+    # # Instantiate the model
+    # input_size = 2  # Size of input features
+    # hidden_size = hidden_dim  # Size of hidden state
+    # output_size = 2  # Size of output
+    # net = VanillaRNN(input_size, hidden_size, output_size)
 
 
     learning_rate = 0.05 * 4
@@ -1039,22 +889,19 @@ def train_multiple_dotsNeighbotSingleBatch(
     np.save(f'{weight_difference_folder}/B_layer_after_training_background_neighbors.npy',
             np.asarray(activation_history['B layer ; after training ; background neighbors']))  # (# batch, num_background, 2)
 
-total_epochs = 1
+total_epochs = 5
 num_iterations_per_batch = 5  # increase this from 1 to 10, the ratio of mean_background/mean_close increases from 1.64 to 3.09
-(num_close, num_background)=(10, 10)  # after changing the local_aggregation_loss function, the ratio of mean_background/mean_close becomes extremely stably and not easy to collapse.
-hidden_dim = 40
-num_layers = 10
-loss_type = 'push_pull_loss'  # 'push_pull_loss' 'vector_scale_loss'
+hidden_dim = 20
+num_layers = 2
+loss_type = 'vector_scale_loss'
 train_multiple_dotsNeighbotSingleBatch(
     threeD_input=False,
     remove_boundary_dots=False,
-    integrationForceScale=1,  # the relative force scale between integration and differentiation. Should be 1, 2 collapses the result
+    integrationForceScale=None,  # the relative force scale between integration and differentiation. Should be 1, 2 collapses the result
     total_epochs=total_epochs,
     range_loss_rep_shrink=None,  # rep_shrink can be None (not using range loss), 1, 0.9, 0.85, 0.8, whether range loss is implemented
     num_iterations_per_batch=num_iterations_per_batch,
     plot_neighborhood=False,
-    num_close=num_close,
-    num_background=num_background,
     hidden_dim=hidden_dim,
     num_layers=num_layers,
     loss_type=loss_type,
@@ -1634,12 +1481,12 @@ def representational_level(total_epochs=None, batch_num_per_epoch=None, num_clos
             plotFig=True)
 
 
-representational_level(
-    total_epochs=total_epochs,
-    batch_num_per_epoch=1000*num_iterations_per_batch,  # batch_num_per_epoch * iter_per_batch = 1000*3
-    num_closePoints=num_close,
-    num_backgroundPoints=num_background,
-)
+# representational_level(
+#     total_epochs=total_epochs,
+#     batch_num_per_epoch=1000*num_iterations_per_batch,  # batch_num_per_epoch * iter_per_batch = 1000*3
+#     num_closePoints=num_close,
+#     num_backgroundPoints=num_background,
+# )
 
 
 def synaptic_level(total_epochs=50, batch_num_per_epoch=1000):
@@ -1963,10 +1810,10 @@ def synaptic_level(total_epochs=50, batch_num_per_epoch=1000):
     # plot_scatter_and_cubic(x_partials_, y_partials_, mean_parameters_avg)
 
 
-synaptic_level(
-    total_epochs=total_epochs,
-    batch_num_per_epoch=1000*num_iterations_per_batch  # batch_num_per_epoch * iter_per_batch = 1000*3)
-    )
+# synaptic_level(
+#     total_epochs=total_epochs,
+#     batch_num_per_epoch=1000*num_iterations_per_batch  # batch_num_per_epoch * iter_per_batch = 1000*3)
+#     )
 
 print('done')
 
