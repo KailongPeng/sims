@@ -114,7 +114,7 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=1000):
 
 best_points_history = np.asarray(np.load('./result/best_points_history.npy'))  # (np.array(best_points_history).shape=(101, 40, 2))。
 best_points_history = best_points_history[0:3]
-model, weight_changes, activations = train_model(best_points_history, patience=10, min_delta=0, max_epochs=1000)
+model, weight_changes, activations = train_model(best_points_history, patience=10, min_delta=1e-20, max_epochs=10000)
 
 weight_changes = np.array(weight_changes)
 activations = np.array(activations)
