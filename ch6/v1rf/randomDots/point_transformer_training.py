@@ -70,7 +70,7 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs, eta_min=0)
 
-    final_weight_changes = []
+    final_weight = []
     final_activations_layer3 = []
     final_activations_output = []
 
@@ -95,7 +95,7 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
 
         # Record the final weight and activations after last epoch of each curr_timepoint
         with torch.no_grad():
-            final_weight_changes.append(model.fc3.weight.clone().detach().numpy())
+            final_weight.append(model.fc3.weight.clone().detach().numpy())
             activation_layer3 = torch.relu(model.fc2(torch.relu(model.fc1(initial_points))))
             final_activations_layer3.append(activation_layer3.numpy())
             final_activations_output.append(outputs.numpy())
@@ -109,16 +109,16 @@ def train_model(best_points_history, patience=10, min_delta=0, max_epochs=10000)
         plt.legend()
         plt.show()
 
-    return model, final_weight_changes, final_activations_layer3, final_activations_output
+    return model, final_weight, final_activations_layer3, final_activations_output
 
 best_points_history = np.asarray(np.load('./result/best_points_history.npy'))
 best_points_history = best_points_history[0:3]
-model, final_weight_changes, final_activations_layer3, final_activations_output = train_model(
+model, final_weight, final_activations_layer3, final_activations_output = train_model(
     best_points_history, patience=100, min_delta=1e-20, max_epochs=10000)
 
-final_weight_changes = np.array(final_weight_changes)
+final_weight = np.array(final_weight)
 final_activations_layer3 = np.array(final_activations_layer3)
 final_activations_output = np.array(final_activations_output)
-print(final_weight_changes.shape)
+print(final_weight.shape)
 print(final_activations_layer3.shape)
 print(final_activations_output.shape)
