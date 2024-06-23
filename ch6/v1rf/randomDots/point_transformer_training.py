@@ -2,7 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
+import os
+
+os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
 
 # Define the neural network architecture
 class PointTransformer(nn.Module):
@@ -20,7 +24,7 @@ class PointTransformer(nn.Module):
 
 
 # Function to train the model and record weights and activations
-def train_model(best_points_history, num_epochs=100):
+def train_model(best_points_history, num_epochs=10):
     initial_points = best_points_history[0]  # shape: (40, 2)
     best_points_history = torch.tensor(best_points_history, dtype=torch.float32)
     initial_points = torch.tensor(initial_points, dtype=torch.float32)
@@ -33,8 +37,8 @@ def train_model(best_points_history, num_epochs=100):
     weight_changes = []
     activations = []
 
-    for epoch in range(num_epochs):
-        for t in range(1, best_points_history.shape[0]):
+    for t in range(1, best_points_history.shape[0]):
+        for epoch in tqdm(range(num_epochs)):
             optimizer.zero_grad()
             outputs = model(initial_points)
             target = best_points_history[t]
@@ -51,11 +55,16 @@ def train_model(best_points_history, num_epochs=100):
                 activation = torch.relu(model.fc2(torch.relu(model.fc1(initial_points)))).numpy()
             activations.append(activation)
 
+            # 在这里加入代码以可视化训练后的输出的点以及目标点，观察训练效果
+
     return model, weight_changes, activations
 
 
-# Example usage
-best_points_history = np.random.rand(101, 40, 2)  # Replace with actual data
-model, weight_changes, activations = train_model(best_points_history)
+best_points_history = np.asarray(np.load('./result/best_points_history.npy'))  # (np.array(best_points_history).shape=(101, 40, 2))。
+best_points_history = best_points_history[0: 3]
+model, weight_changes, activations = train_model(best_points_history, num_epochs=10)
 
-# Now `weight_changes` and `activations` hold the required information
+weight_changes = np.array(weight_changes)
+activations = np.array(activations)
+print(weight_changes.shape)  # (20, 2, 20)
+print(activations.shape)  # (20, 40, 20)
