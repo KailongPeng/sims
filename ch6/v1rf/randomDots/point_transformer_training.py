@@ -4,11 +4,10 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-
 import os
 
 if 'gpfs/milgram' in os.getcwd():
-    os.chdir('"/gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots"')
+    os.chdir("/gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots")
 else:
     os.chdir(r"D:\Desktop\simulation\sims\ch6\v1rf\randomDots")
 
@@ -30,9 +29,29 @@ class PointTransformer(nn.Module):
         x = self.fc3(x)
         return x
 
+# Early stopping class
+class EarlyStopping:
+    def __init__(self, patience=10, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.best_loss = None
+        self.counter = 0
+
+    def __call__(self, loss):
+        if self.best_loss is None:
+            self.best_loss = loss
+            return False
+
+        if loss < self.best_loss - self.min_delta:
+            self.best_loss = loss
+            self.counter = 0
+        else:
+            self.counter += 1
+
+        return self.counter >= self.patience
 
 # Function to train the model and record weights and activations
-def train_model(best_points_history, num_epochs=10):
+def train_model(best_points_history, patience=10, min_delta=0, max_epochs=1000):
     initial_points = best_points_history[0]  # shape: (40, 2)
     best_points_history = torch.tensor(best_points_history, dtype=torch.float32)
     initial_points = torch.tensor(initial_points, dtype=torch.float32)
@@ -45,12 +64,17 @@ def train_model(best_points_history, num_epochs=10):
     weight_changes = []
     activations = []
 
+    losses = {}
     for t in range(1, best_points_history.shape[0]):
-        for epoch in tqdm(range(num_epochs)):
+        early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
+        for epoch in tqdm(range(max_epochs)):
             optimizer.zero_grad()
             outputs = model(initial_points)
             target = best_points_history[t]
             loss = criterion(outputs, target)
+            if epoch == 0:
+                losses[t] = []
+            losses[t].append(loss.item())
             loss.backward()
             optimizer.step()
 
@@ -64,7 +88,7 @@ def train_model(best_points_history, num_epochs=10):
             activations.append(activation)
 
             # Visualize training outputs and targets
-            if epoch % (num_epochs // 5) == 0:  # Plot every few epochs
+            if epoch % (max_epochs // 10) == 0:  # Plot every few epochs
                 plt.figure(figsize=(10, 5))
                 plt.scatter(outputs[:, 0].detach().numpy(), outputs[:, 1].detach().numpy(), color='blue', label='Predicted Points')
                 plt.scatter(target[:, 0].detach().numpy(), target[:, 1].detach().numpy(), color='red', label='Target Points')
@@ -72,14 +96,27 @@ def train_model(best_points_history, num_epochs=10):
                 plt.legend()
                 plt.show()
 
-    return model, weight_changes, activations
+            # Check early stopping
+            if early_stopping(loss.item()):
+                print(f"Early stopping at epoch {epoch} for time point {t}")
+                break
+    # Plot the loss curves
+    for t in range(1, best_points_history.shape[0]):
+        plt.figure(figsize=(10, 5))
+        plt.plot(losses[t], label=f'Time Point {t}')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title(f'Loss Curve for Time Point {t}')
+        plt.legend()
+        plt.show()
 
+    return model, weight_changes, activations
 
 best_points_history = np.asarray(np.load('./result/best_points_history.npy'))  # (np.array(best_points_history).shape=(101, 40, 2))。
 best_points_history = best_points_history[0:3]
-model, weight_changes, activations = train_model(best_points_history, num_epochs=10)
+model, weight_changes, activations = train_model(best_points_history, patience=10, min_delta=0, max_epochs=1000)
 
 weight_changes = np.array(weight_changes)
 activations = np.array(activations)
-print(weight_changes.shape)  # (20, 2, 20)
-print(activations.shape)  # (20, 40, 20)
+print(weight_changes.shape)
+print(activations.shape)
