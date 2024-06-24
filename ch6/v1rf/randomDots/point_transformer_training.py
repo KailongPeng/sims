@@ -163,9 +163,9 @@ model, final_weight, final_activations_layer3, final_activations_output = train_
 final_weight = np.array(final_weight)
 final_activations_layer3 = np.array(final_activations_layer3)
 final_activations_output = np.array(final_activations_output)
-print(f"final_weight.shape={final_weight.shape}")
-print(f"final_activations_layer3.shape={final_activations_layer3.shape}")
-print(f"final_activations_output.shape={final_activations_output.shape}")
+print(f"final_weight.shape={final_weight.shape}")  # (101, 2, 20)
+print(f"final_activations_layer3.shape={final_activations_layer3.shape}")  # (101, 40, 20)
+print(f"final_activations_output.shape={final_activations_output.shape}")  # (101, 40, 2)
 
 # tag for time
 import time
@@ -175,6 +175,80 @@ np.save(f'./result/final_activations_layer3_{time}.npy', final_activations_layer
 np.save(f'./result/final_activations_output_{time}.npy', final_activations_output)
 print(f"Results saved with time tag: {time}")
 
-# np.save('./result/final_weight.npy', final_weight)
-# np.save('./result/final_activations_layer3.npy', final_activations_layer3)
-# np.save('./result/final_activations_output.npy', final_activations_output)
+
+# 模仿第一段代码, 把第二段代码的结果进行相似的synaptic level 的NMPH的分析.
+
+
+def prepare_nn_data(final_weight, final_activations_layer3, final_activations_output):
+    unit_num_layer_3 = final_activations_layer3.shape[-1]
+    unit_num_output = final_activations_output.shape[-1]
+
+    selected_channel_ids_layer_3 = list(range(unit_num_layer_3))
+    selected_channel_ids_output = list(range(unit_num_output))
+
+    num_dots = final_activations_layer3.shape[1]
+    layer_3_activations = final_activations_layer3.reshape((-1, num_dots, unit_num_layer_3))
+    layer_output_activations = final_activations_output.reshape((-1, num_dots, unit_num_output))
+
+    weight_changes = final_weight
+
+    co_activations_flatten = []
+    weight_changes_flatten = []
+    pair_ids = []
+
+    for curr_channel_3_feature in tqdm(range(len(selected_channel_ids_layer_3))):
+        for curr_channel_output_feature in range(len(selected_channel_ids_output)):
+            activation_layer_3 = layer_3_activations[:, :, curr_channel_3_feature]
+            activation_output = layer_output_activations[:, :, curr_channel_output_feature]
+            weight_change = weight_changes[:, curr_channel_output_feature, curr_channel_3_feature]
+
+            weight_changes_flatten.append(weight_change)
+
+            co_activation = np.multiply(activation_layer_3, activation_output)
+            co_activation = np.mean(co_activation, axis=1)
+
+            co_activations_flatten.append(co_activation)
+            pair_ids.append([
+                selected_channel_ids_layer_3[curr_channel_3_feature],
+                selected_channel_ids_output[curr_channel_output_feature]
+            ])
+
+    return co_activations_flatten, weight_changes_flatten, pair_ids
+
+
+time = "2024-06-23-19-08-35"
+final_weight = np.load(f'./result/final_weight_{time}.npy')
+final_activations_layer3 = np.load(f'./result/final_activations_layer3_{time}.npy')
+final_activations_output = np.load(f'./result/final_activations_output_{time}.npy')
+
+# Compute the difference along the time axis (axis=0)
+diff_weight = np.diff(final_weight, axis=0)
+# Check the shape of the resulting matrix
+print(f"diff_weight.shape={diff_weight.shape}")  # Should print (100, 2, 20)
+
+co_activations_flatten_, weight_changes_flatten_, pair_ids_ = prepare_nn_data(
+    diff_weight, final_activations_layer3, final_activations_output)
+
+mean_correlation_coefficients_, mean_parameters_, x_partials_, y_partials_ = run_NMPH(
+    co_activations_flatten_, weight_changes_flatten_, pair_ids_, plot_fig=True)
+
+x_partials_ = x_partials_.flatten()
+y_partials_ = y_partials_.flatten()
+mean_parameters_avg = np.mean(mean_parameters_, axis=0)
+
+def plot_scatter_and_cubic(x_partials, y_partials, mean_parameters):
+    def cubic_function(_x, a, b, c, d):
+        print(f"a={a}, b={b}, c={c}, d={d}")
+        return a * _x ** 3 + b * _x ** 2 + c * _x + d
+
+    plt.scatter(x_partials, y_partials, label='Data Points', color='green', marker='o', s=30)
+    x_fit = np.linspace(min(x_partials), max(x_partials), 100)
+    y_fit = cubic_function(x_fit, *mean_parameters)
+    plt.plot(x_fit, y_fit, label='Fitted Cubic Curve', color='red')
+    plt.xlabel('X Partials')
+    plt.ylabel('Y Partials')
+    plt.legend()
+    plt.show()
+
+plot_scatter_and_cubic(x_partials_, y_partials_, mean_parameters_avg)
+

@@ -24,5 +24,5 @@ echo "done"
 #"
 #cd /gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots
 #sbatch /gpfs/milgram/project/turk-browne/projects/sandbox/simulation/sims/ch6/v1rf/randomDots/point_transformer_training.sh
-#27044136 27044137 27044153
+#27044136 27044137 27044153 27044154
 #"
