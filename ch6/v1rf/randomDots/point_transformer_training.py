@@ -176,21 +176,95 @@ np.save(f'./result/final_activations_output_{time}.npy', final_activations_outpu
 print(f"Results saved with time tag: {time}")
 
 
-# 模仿第一段代码, 把第二段代码的结果进行相似的synaptic level 的NMPH的分析.
+# synaptic level 的NMPH的分析
 
 
-def prepare_nn_data(final_weight, final_activations_layer3, final_activations_output):
-    unit_num_layer_3 = final_activations_layer3.shape[-1]
-    unit_num_output = final_activations_output.shape[-1]
+from scipy.stats import pearsonr
+from scipy.optimize import curve_fit
 
-    selected_channel_ids_layer_3 = list(range(unit_num_layer_3))
-    selected_channel_ids_output = list(range(unit_num_output))
 
-    num_dots = final_activations_layer3.shape[1]
-    layer_3_activations = final_activations_layer3.reshape((-1, num_dots, unit_num_layer_3))
-    layer_output_activations = final_activations_output.reshape((-1, num_dots, unit_num_output))
+def cal_resample(data=None, times=5000, return_all=False):
+    """
+    Perform resampling on input data.
 
-    weight_changes = final_weight
+    Parameters:
+    - data: Input data.
+    - times: Number of resampling iterations.
+    - return_all: Whether to return all resampled means.
+
+    Returns:
+    - mean: Mean of the resampled means.
+    - percentile_5: 5th percentile of the resampled means.
+    - percentile_95: 95th percentile of the resampled means.
+    - iter_means: List of all resampled means if return_all is True.
+    """
+    if data is None:
+        raise ValueError("Input data must be provided.")
+    if isinstance(data, list):
+        data = np.asarray(data)
+    iter_means = [np.nanmean(data[np.random.choice(len(data), len(data), replace=True)]) for _ in range(times)]
+    mean = np.mean(iter_means)
+    percentile_5 = np.percentile(iter_means, 5)
+    percentile_95 = np.percentile(iter_means, 95)
+    if return_all:
+        return mean, percentile_5, percentile_95, iter_means
+    else:
+        return mean, percentile_5, percentile_95
+
+
+def bar(means=None, upper=None, lower=None, ROINames=None, title=None, xLabel="", yLabel="", fontsize=50,
+        setBackgroundColor=False,
+        savePath=None, showFigure=True):
+    import matplotlib.pyplot as plt
+    # plot barplot with percentage error bar
+    if type(means) == list:
+        means = np.asarray(means)
+    if type(upper) == list:
+        upper = np.asarray(upper)
+    if type(means) == list:
+        lower = np.asarray(lower)
+
+    # plt.figure(figsize=(fontsize, fontsize/2), dpi=70)
+    positions = list(np.arange(len(means)))
+
+    fig, ax = plt.subplots(figsize=(fontsize/2, fontsize/2))
+    ax.bar(positions, means, yerr=[means - lower, upper - means], align='center', alpha=0.5, ecolor='black',
+           capsize=10)
+    if setBackgroundColor:
+        ax.set_facecolor((242 / 256, 242 / 256, 242 / 256))
+    ax.set_ylabel(yLabel, fontsize=fontsize)
+    ax.set_xlabel(xLabel, fontsize=fontsize)
+    ax.set_xticks(positions)
+    ax.set_facecolor((242 / 256, 242 / 256, 242 / 256))
+    # Increase y-axis tick font size
+    ax.tick_params(axis='y', labelsize=fontsize)
+
+    if ROINames is not None:
+        xtick = ROINames
+        ax.set_xticklabels(xtick, fontsize=fontsize, rotation=45, ha='right')
+    ax.set_title(title, fontsize=fontsize)
+    ax.yaxis.grid(True)
+    _ = plt.tight_layout()
+    if savePath is not None:
+        plt.savefig(savePath)
+    if showFigure:
+        _ = plt.show()
+    else:
+        _ = plt.close()
+
+
+def prepare_nn_data(diff_weight, final_activations_layer3, final_activations_output):
+    unit_num_layer_3 = final_activations_layer3.shape[-1]  # 20
+    unit_num_output = final_activations_output.shape[-1]  # 2
+
+    selected_channel_ids_layer_3 = list(range(unit_num_layer_3))  # [0, 1, 2, ..., 19]
+    selected_channel_ids_output = list(range(unit_num_output))  # [0, 1]
+
+    num_dots = final_activations_layer3.shape[1]  # 40
+    layer_3_activations = final_activations_layer3.reshape((-1, num_dots, unit_num_layer_3))  # (101, 40, 20)
+    layer_output_activations = final_activations_output.reshape((-1, num_dots, unit_num_output))  # (101, 40, 2)
+
+    weight_changes = diff_weight  # (100, 2, 20)
 
     co_activations_flatten = []
     weight_changes_flatten = []
@@ -198,14 +272,21 @@ def prepare_nn_data(final_weight, final_activations_layer3, final_activations_ou
 
     for curr_channel_3_feature in tqdm(range(len(selected_channel_ids_layer_3))):
         for curr_channel_output_feature in range(len(selected_channel_ids_output)):
-            activation_layer_3 = layer_3_activations[:, :, curr_channel_3_feature]
-            activation_output = layer_output_activations[:, :, curr_channel_output_feature]
-            weight_change = weight_changes[:, curr_channel_output_feature, curr_channel_3_feature]
+            # 获取对于指定的synapse前后的neuron的activation
+            activation_layer_3 = layer_3_activations[:, :, curr_channel_3_feature]  # (101, 40)
+            activation_output = layer_output_activations[:, :, curr_channel_output_feature]  # (101, 40)
+            # 获取对于指定的synapse的weight change
+            weight_change = weight_changes[:, curr_channel_output_feature, curr_channel_3_feature]  # (100,)
 
+            # 对于每一个time point, 记录指定的synapse的weight change
             weight_changes_flatten.append(weight_change)
 
-            co_activation = np.multiply(activation_layer_3, activation_output)
-            co_activation = np.mean(co_activation, axis=1)
+            # 计算co-activation
+            co_activation = np.multiply(activation_layer_3, activation_output)  # (101, 40)
+            # 对于每一个time point, 计算40个neuron的co-activation的平均值
+            co_activation = np.mean(co_activation, axis=1)  # (101,)
+            # 去掉最后一个time point, 因为weight change由于做了差值, 是没有最后一个time point的
+            co_activation = co_activation[0:-1] # (100,)
 
             co_activations_flatten.append(co_activation)
             pair_ids.append([
@@ -228,6 +309,147 @@ print(f"diff_weight.shape={diff_weight.shape}")  # Should print (100, 2, 20)
 
 co_activations_flatten_, weight_changes_flatten_, pair_ids_ = prepare_nn_data(
     diff_weight, final_activations_layer3, final_activations_output)
+
+
+def run_NMPH(co_activations_flatten, weight_changes_flatten, pair_ids, rows=None, cols=None, plot_fig=False):
+
+    def cubic_fit_correlation_with_params(x, y, n_splits=10, random_state=42, return_subset=True):
+        def cubic_function(_x, a, b, c, d):
+            return a * _x ** 3 + b * _x ** 2 + c * _x + d
+
+        # Function to compute correlation coefficient
+        def compute_correlation(observed, predicted):
+            return pearsonr(observed, predicted)[0]
+
+        # Set random seed for reproducibility
+        np.random.seed(random_state)
+
+        # Shuffle indices for k-fold cross-validation
+        indices = np.arange(len(x))
+        np.random.shuffle(indices)
+
+        # Initialize arrays to store correlation coefficients and parameters
+        correlation_coefficients = []
+        fitted_params = []
+
+        for curr_split in range(n_splits):
+            # Split data into training and testing sets
+            split_size = len(x) // n_splits
+            test_indices = indices[curr_split * split_size: (curr_split + 1) * split_size]
+            train_indices = np.concatenate([indices[:curr_split * split_size], indices[(curr_split + 1) * split_size:]])
+
+            x_train, x_test = x[train_indices], x[test_indices]
+            y_train, y_test = y[train_indices], y[test_indices]
+
+            # Perform constrained cubic fit on the training data
+            params, _ = curve_fit(cubic_function, x_train, y_train)
+
+            # Predict y values on the test data
+            y_pred = cubic_function(x_test, *params)
+
+            # Compute correlation coefficient and store it
+            correlation_coefficient = compute_correlation(y_test, y_pred)
+            correlation_coefficients.append(correlation_coefficient)
+
+            # Store fitted parameters
+            fitted_params.append(params)
+
+        # Average correlation coefficients and parameters across folds
+        mean_correlation = np.mean(correlation_coefficients)
+        mean_params = np.mean(fitted_params, axis=0)
+
+        if return_subset:
+            # Randomly choose 9% of the data for future visualization
+            subset_size = 10  # int(0.09 * len(x))
+            subset_indices = random.sample(range(len(x)), subset_size)
+            return mean_correlation, mean_params, x[subset_indices], y[subset_indices]
+        else:
+            return mean_correlation, mean_params
+
+    if plot_fig:
+        if rows is None:
+            rows = int(np.ceil(np.sqrt(len(co_activations_flatten))))
+        if cols is None:
+            cols = int(np.sqrt(len(co_activations_flatten)))
+
+        fig, axs = plt.subplots(rows, cols, figsize=(15, 15))  # Create a subplot matrix
+        from matplotlib.cm import get_cmap
+        cmap = get_cmap('viridis')  # Choose a colormap (you can change 'viridis' to your preferred one)
+    else:
+        axs = None
+        cmap = None
+
+    mean_correlation_coefficients = []
+    mean_parameters = []
+    x_partials = []
+    y_partials = []
+    for curr_pairID in tqdm(range(len(co_activations_flatten))):
+        if testMode:
+            test_batch_num = 5000
+            x__ = co_activations_flatten[curr_pairID][:test_batch_num]
+            y__ = weight_changes_flatten[curr_pairID][:test_batch_num]
+            pair_id = pair_ids[curr_pairID]
+        else:
+            x__ = co_activations_flatten[curr_pairID]
+            y__ = weight_changes_flatten[curr_pairID]
+            pair_id = pair_ids[curr_pairID]
+        mean_correlation_coefficient, mean_parameter, x_partial, y_partial = cubic_fit_correlation_with_params(
+            x__, y__,
+            n_splits=10,
+            random_state=42,
+            return_subset=True
+        )
+        mean_correlation_coefficients.append(mean_correlation_coefficient)
+        mean_parameters.append(mean_parameter)
+        x_partials.append(x_partial)
+        y_partials.append(y_partial)
+
+        if plot_fig:
+            row = curr_pairID // cols
+            col = curr_pairID % cols
+
+            ax = axs[row, col]  # Select the appropriate subplot
+
+            # Color the dots based on a sequence
+            sequence = np.linspace(0, 1, len(x__))  # Create a sequence of values from 0 to 1
+            colors = cmap(sequence)  # Map the sequence to colors using the chosen colormap
+
+            ax.scatter(x__, y__, s=10, c=colors)  # 's' controls the size of the points, 'c' sets the colors
+
+            # plot curve with mean_parameter
+            def cubic_function(_x, a, b, c, d):
+                return a * _x ** 3 + b * _x ** 2 + c * _x + d
+
+            # Generate points for the fitted cubic curve
+            x_fit = np.linspace(min(x__), max(x__), 100)
+            y_fit = cubic_function(x_fit, *mean_parameter)
+
+            # Plot the fitted cubic curve
+            ax.plot(x_fit, y_fit, label='Fitted Cubic Curve', color='red')
+
+            # Add labels and a title to each subplot
+            ax.set_title(f'pairID: {pair_id}')
+
+            # # Hide x and y-axis ticks and tick labels
+            # ax.set_xticks([])
+            # ax.set_yticks([])
+
+    if plot_fig:
+        plt.tight_layout()  # Adjust subplot layout for better visualization
+        plt.subplots_adjust(wspace=0, hspace=0)
+        plt.show()
+
+    mean_correlation_coefficients = np.array(mean_correlation_coefficients)
+    # cal_resample(mean_correlation_coefficients)
+    mean, percentile_5, percentile_95 = cal_resample(mean_correlation_coefficients, times=5000)
+    print(f"mean={mean}, 5%={percentile_5}, 95%={percentile_95}")
+    bar([mean], [percentile_5], [percentile_95], title=f"mean={mean}, 5%={percentile_5}, 95%={percentile_95}")
+    p_value = np.nanmean(mean_correlation_coefficients < 0)
+    print(f"p value = {p_value}")
+
+    # Return mean_correlation_coefficients along with recorded_data
+    return mean_correlation_coefficients, np.array(mean_parameters), np.array(x_partials), np.array(y_partials)
+
 
 mean_correlation_coefficients_, mean_parameters_, x_partials_, y_partials_ = run_NMPH(
     co_activations_flatten_, weight_changes_flatten_, pair_ids_, plot_fig=True)
